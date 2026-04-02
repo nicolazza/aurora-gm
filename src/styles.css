@@ -1,0 +1,349 @@
+/**
+ * NGO Farm Manager - Styles
+ * ~60 lines
+ */
+
+html, body { 
+    background-color: #f3f4f6; 
+    font-family: 'Segoe UI', sans-serif; 
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+body:not(.vue-ready) {
+    visibility: hidden;
+    overflow: hidden;
+}
+
+body.vue-ready {
+    visibility: visible;
+}
+
+[v-cloak] { 
+    display: none !important; 
+}
+
+#app {
+    background-color: #f3f4f6;
+    min-height: 100vh;
+}
+
+input:disabled { 
+    background-color: #f3f4f6; 
+    color: #9ca3af; 
+    cursor: not-allowed; 
+}
+
+.scrollbar-hide::-webkit-scrollbar { 
+    display: none; 
+}
+
+/* Transitions */
+.expand-enter-active, .expand-leave-active { 
+    transition: all 0.3s ease; 
+    overflow: hidden; 
+    max-height: 1000px; 
+    opacity: 1; 
+}
+.expand-enter-from, .expand-leave-to { 
+    max-height: 0; 
+    opacity: 0; 
+    margin-top: 0; 
+}
+
+.fade-enter-active, .fade-leave-active { 
+    transition: opacity 0.3s ease; 
+}
+.fade-enter-from, .fade-leave-to { 
+    opacity: 0; 
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Road animation */
+@keyframes road-right { to { background-position: 12px 0; } }
+@keyframes road-left  { to { background-position: -12px 0; } }
+@keyframes road-down  { to { background-position: 0 12px; } }
+.road-h {
+    height: 2px;
+    background: repeating-linear-gradient(90deg, #d1d5db 0, #d1d5db 6px, transparent 6px, transparent 12px);
+}
+.road-v {
+    width: 2px;
+    background: repeating-linear-gradient(180deg, #d1d5db 0, #d1d5db 6px, transparent 6px, transparent 12px);
+}
+.road-right { animation: road-right 800ms linear infinite; }
+.road-left  { animation: road-left  800ms linear infinite; }
+.road-down  { animation: road-down  800ms linear infinite; }
+
+/* Pixel art scene container */
+.pixel-scene { position: relative; overflow: hidden; min-height: calc(90vh - 56px); }
+
+/* Section slide transition */
+.slide-section-enter-active { transition: max-height 0.5s ease, opacity 0.4s ease; overflow: hidden; }
+.slide-section-leave-active { transition: max-height 0.4s ease, opacity 0.3s ease; overflow: hidden; }
+.slide-section-enter-from { max-height: 0; opacity: 0; }
+.slide-section-enter-to { max-height: 2000px; opacity: 1; }
+.slide-section-leave-from { max-height: 2000px; opacity: 1; }
+.slide-section-leave-to { max-height: 0; opacity: 0; }
+
+/* Category carousel */
+@keyframes carousel-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.category-carousel-track {
+    animation: carousel-scroll 30s linear infinite;
+}
+.category-carousel-track:hover {
+    animation-play-state: paused;
+}
+
+/* Chart Tooltips */
+.chart-tooltip {
+    visibility: hidden;
+    position: absolute;
+    background-color: rgba(0,0,0,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 20;
+    pointer-events: none;
+}
+.group:hover .chart-tooltip { 
+    visibility: visible; 
+}
+
+.pie-slice:hover { 
+    opacity: 0.8; 
+    cursor: pointer; 
+}
+
+/* Utility Cards */
+.utility-card:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+}
+
+/* CSS custom properties for cost-type colors (set dynamically by Vue) */
+:root {
+    --color-monetary: #16a34a;
+    --color-inkind: #2563eb;
+    --color-community: #ea580c;
+    --color-allocation: #7c3aed;
+    --color-project-value: #D69828;
+    --color-bar-completed: #D69828;
+    --color-bar-in-progress: #F5DFA8;
+    --color-tier-completed: #D69828;
+    --color-tier-in-progress: #F5DFA8;
+}
+
+/* Project card: three numbers gray by default, colored on hover */
+.project-num { color: #6b7280; transition: color 0.2s ease; }
+.project-num-zero { color: #d1d5db; transition: color 0.2s ease; }
+.group:hover .project-num-monetary { color: var(--color-monetary); }
+.group:hover .project-num-inkind { color: var(--color-inkind); }
+.group:hover .project-num-community { color: var(--color-community); }
+.group:hover .project-num-donations { color: #ec4899; }
+
+/* Popover Animation */
+.popover-enter-active, .popover-leave-active { 
+    transition: opacity 0.2s, transform 0.2s; 
+}
+.popover-enter-from, .popover-leave-to { 
+    opacity: 0; 
+    transform: translateY(-5px); 
+}
+
+/* Gantt chart */
+.gantt-row { transition: background-color 0.15s ease; }
+.gantt-row:hover { background-color: #f9fafb; }
+
+.gantt-bar-backlog {
+    background: repeating-linear-gradient(
+        90deg,
+        #d1d5db 0px,
+        #d1d5db 4px,
+        transparent 4px,
+        transparent 8px
+    );
+    opacity: 0.6;
+}
+
+.gantt-bar-active {
+    background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 3px,
+        rgba(255,255,255,0.25) 3px,
+        rgba(255,255,255,0.25) 6px
+    );
+}
+
+.gantt-diamond {
+    transform: translate(-50%, -50%) rotate(45deg);
+    transition: transform 0.15s ease;
+}
+.gantt-diamond:hover {
+    transform: translate(-50%, -50%) rotate(45deg) scale(1.3);
+}
+
+.gantt-popover {
+    min-width: 180px;
+}
+
+/* Intervention rich text in timeline */
+.intervention-rich-text p { margin-bottom: 0.35em; }
+.intervention-rich-text ul, .intervention-rich-text ol { padding-left: 1.2em; margin-bottom: 0.35em; }
+.intervention-rich-text li { margin-bottom: 0.15em; }
+.intervention-rich-text strong { font-weight: 600; }
+.intervention-rich-text em { font-style: italic; }
+.intervention-rich-text blockquote { border-left: 2px solid #c7d2fe; padding-left: 0.5em; margin: 0.3em 0; color: #6b7280; font-style: italic; }
+.intervention-rich-text a { color: #6366f1; text-decoration: underline; }
+.intervention-rich-text h1, .intervention-rich-text h2, .intervention-rich-text h3 { font-weight: 700; margin-bottom: 0.25em; }
+
+/* ── App Navigation Dock ───────────────────────────────── */
+.app-dock-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    border-radius: 12px;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.45);
+    transition: all 0.2s ease;
+}
+.app-dock-item:hover {
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.08);
+}
+.app-dock-active {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+.app-dock-icon-wrap {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+.app-dock-icon-active {
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+}
+.app-dock-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+.app-dock-item {
+    position: relative;
+}
+.app-dock-item::before {
+    content: attr(data-dock-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.95);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.app-dock-item:hover::before {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px);
+}
+/* ── AI dock button ──────────────────────────────────── */
+.app-dock-ai {
+    width: 40px;
+}
+.app-dock-ai:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+.app-dock-ai-active {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── AI chat markdown styles ─────────────────────────── */
+.ai-md-list {
+    margin: 2px 0;
+}
+.ai-md-li {
+    display: flex;
+    gap: 6px;
+    margin-left: 4px;
+}
+.ai-md-bullet {
+    color: rgb(148, 163, 184);
+    user-select: none;
+    flex-shrink: 0;
+}
+.ai-md-num {
+    color: rgb(148, 163, 184);
+    user-select: none;
+    min-width: 1.2em;
+    text-align: right;
+    flex-shrink: 0;
+}
+.ai-md-code {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-family: monospace;
+}
+
+@keyframes bounce-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+.animate-bounce-slow {
+    animation: bounce-slow 2.5s ease-in-out infinite;
+}
+.animate-bounce-slow:hover {
+    animation: none;
+}
+
+@keyframes cta-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+@keyframes cta-scroll-rev {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+}
+.cta-icon-strip {
+    width: max-content;
+    white-space: nowrap;
+}
+
+.gm-style-iw-d { overflow: hidden !important; padding: 12px 14px !important; }
+.gm-style-iw-c { padding: 0 !important; }
+.gm-style-iw-ch { height: 0 !important; padding: 0 !important; margin: 0 !important; }
+button.gm-ui-hover-effect { top: 2px !important; right: 2px !important; }

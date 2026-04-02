@@ -1,0 +1,90 @@
+    <!-- ═══════════════════════════════════════════════════════════════════
+         AI CHAT ASSISTANT — panel (button is in the dock above)
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Chat panel -->
+    <div v-if="aiChatOpen"
+         class="fixed bottom-[72px] right-6 z-[9998] w-[400px] max-w-[calc(100vw-2rem)]
+                h-[520px] max-h-[calc(100vh-8rem)]
+                bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl
+                flex flex-col overflow-hidden">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/80 shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+          <span class="font-semibold text-white text-sm">{{ $t('ai_chat.title') }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button v-if="aiChatMessages.length > 0"
+                  @click="clearAiConversation"
+                  class="text-xs text-slate-400 hover:text-white transition-colors px-2 py-1 rounded hover:bg-slate-700">
+            {{ $t('ai_chat.new_chat') }}
+          </button>
+          <button @click="aiChatOpen = false"
+                  class="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages area -->
+      <div id="ai-chat-messages"
+           class="flex-1 overflow-y-auto p-4 space-y-3">
+
+        <!-- Welcome message -->
+        <div v-if="aiChatMessages.length === 0 && !aiChatLoading"
+             class="text-center text-slate-500 text-sm mt-8 px-4">
+          <p class="text-lg mb-2">{{ $t('ai_chat.welcome_greeting') }}</p>
+          <p>{{ $t('ai_chat.welcome_message') }}</p>
+        </div>
+
+        <!-- Message bubbles -->
+        <div v-for="(msg, i) in aiChatMessages" :key="i"
+             :class="['flex', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+          <div :class="[
+                 'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                 msg.role === 'user'
+                   ? 'bg-indigo-600 text-white rounded-br-md whitespace-pre-wrap'
+                   : 'bg-slate-800 text-slate-200 rounded-bl-md border border-slate-700'
+               ]"
+               v-html="msg.role === 'assistant' ? formatAiMessage(msg.content) : msg.content">
+          </div>
+        </div>
+
+        <!-- Loading dots -->
+        <div v-if="aiChatLoading" class="flex justify-start">
+          <div class="bg-slate-800 border border-slate-700 rounded-2xl rounded-bl-md px-4 py-3">
+            <div class="flex gap-1.5">
+              <span class="inline-block w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="inline-block w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="inline-block w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input bar -->
+      <div class="px-3 py-3 border-t border-slate-700 bg-slate-800/60 shrink-0">
+        <div class="flex items-end gap-2">
+          <textarea id="ai-chat-input"
+                    v-model="aiChatInput"
+                    @keydown="aiChatKeydown"
+                    :placeholder="$t('ai_chat.input_placeholder')"
+                    rows="1"
+                    class="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5
+                           text-sm text-white placeholder-slate-500
+                           focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
+                           resize-none max-h-24"
+                    style="min-height: 40px">
+          </textarea>
+          <button @click="sendAiMessage"
+                  :disabled="!aiChatInput.trim() || aiChatLoading"
+                  class="shrink-0 w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700
+                         disabled:opacity-40 disabled:cursor-not-allowed
+                         text-white flex items-center justify-center transition-colors">
+            <i class="fa-solid fa-paper-plane text-sm"></i>
+          </button>
+        </div>
+      </div>
+    </div>

@@ -1,0 +1,524 @@
+    <div v-if="showGrantModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col animate-fade-in-up">
+            <div class="p-4 bg-yellow-600 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-file-invoice-dollar mr-2"></i> {{ $t('grant_operation.title') }}</h3>
+                <button @click="showGrantModal = false" class="hover:text-yellow-200"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 bg-gray-50 flex-grow flex flex-col overflow-hidden">
+                
+                <div class="flex justify-between items-end border-b border-gray-200 pb-4 mb-6 shrink-0">
+                    <div>
+                        <div class="text-xs text-gray-500 uppercase font-bold">{{ $t('grant_operation.operation_date') }}</div>
+                        <div class="font-bold text-xl text-gray-800">{{ activeGrantDate }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500 uppercase font-bold">{{ $t('grant_operation.total_granted') }}</div>
+                        <div class="text-3xl font-mono font-bold text-yellow-600">${{ formatMoney(activeGrantTotal) }}</div>
+                    </div>
+                </div>
+
+                <div class="mb-6 shrink-0">
+                    <h4 class="font-bold text-gray-500 text-xs uppercase mb-2 flex items-center"><i class="fas fa-wallet mr-2"></i> {{ $t('grant_operation.funds_drawn_from') }}</h4>
+                    <div class="flex flex-wrap gap-3">
+                        <div v-for="(src, idx) in activeGrantSources" :key="idx" class="bg-white border border-red-200 shadow-sm rounded-lg px-4 py-2 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500 text-xs"><i class="fas fa-arrow-up"></i></div>
+                            <div>
+                                <div class="font-bold text-gray-700 text-sm leading-tight">{{ src.name }}</div>
+                                <div class="font-mono font-bold text-red-600 text-xs">-${{ formatMoney(src.amount) }}</div>
+                            </div>
+                        </div>
+                        <div v-if="!activeGrantSources || activeGrantSources.length === 0" class="text-xs text-gray-400 italic p-2">{{ $t('grant_operation.no_source_recorded') }}</div>
+                    </div>
+                </div>
+
+                <div class="flex-grow overflow-hidden flex flex-col min-h-0">
+                    <h4 class="font-bold text-gray-500 text-xs uppercase mb-2 flex items-center"><i class="fas fa-hand-holding-heart mr-2"></i> {{ $t('grant_operation.distributed_to') }}</h4>
+                    <div class="bg-white rounded-xl border border-gray-200 flex-grow overflow-y-auto custom-scrollbar shadow-sm">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-gray-100 text-gray-500 text-[10px] uppercase font-bold sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 border-b">{{ $t('grant_operation.project_type') }}</th>
+                                    <th class="p-3 border-b w-1/3">{{ $t('grant_operation.progress_cost') }}</th>
+                                    <th class="p-3 border-b text-right">{{ $t('grant_operation.allocated') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm">
+                                <tr v-for="(det, idx) in activeGrantDetails" :key="idx" class="hover:bg-yellow-50 transition-colors group">
+                                    <template v-if="projects.find(p => p.id === det.projId)">
+                                        <td class="p-3 align-top">
+                                            <div class="font-bold text-gray-800 leading-tight mb-1">{{ projects.find(p => p.id === det.projId).name }}</div>
+                                            <div class="flex flex-wrap gap-2 items-center">
+                                                <span class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                                                    {{ $t('steps.step_level', { level: det.level }) }}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td class="p-3 align-middle">
+                                            <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden relative mb-1 shadow-inner">
+                                                <div class="h-full bg-blue-500 transition-all duration-500" 
+                                                     :style="{ width: Math.min((projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded / projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost) * 100, 100) + '%' }">
+                                                </div>
+                                            </div>
+                                            <div class="flex justify-between items-center text-[10px] font-mono text-gray-500">
+                                                <span>
+                                                    <span class="font-bold text-gray-700">${{ formatMoney(projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded) }}</span>
+                                                    / ${{ formatMoney(projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost) }}
+                                                </span>
+                                                <span class="font-bold" :class="projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded >= projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost ? 'text-green-600' : 'text-blue-500'">
+                                                    {{ Math.round((projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded / projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost) * 100) }}%
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td class="p-3 text-right align-middle">
+                                            <div class="font-mono font-bold text-green-600 text-lg group-hover:scale-110 transition-transform origin-right">
+                                                +${{ formatMoney(det.amount) }}
+                                            </div>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-gray-100 border-t flex justify-end shrink-0">
+                <button @click="showGrantModal = false" class="px-6 py-2 bg-white border border-gray-300 rounded text-gray-600 font-bold hover:bg-gray-50 shadow-sm">{{ $t('common.close') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showEditGrantModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col animate-fade-in-up">
+            <div class="p-4 bg-blue-600 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-edit mr-2"></i> {{ $t('edit_grant.title') }}</h3>
+                <button @click="showEditGrantModal = false" class="hover:text-blue-200"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 bg-gray-50 flex-grow flex flex-col overflow-hidden">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 text-sm text-blue-800 shrink-0 shadow-sm flex justify-between items-center">
+                    <div>
+                        <div class="font-bold flex items-center gap-2"><i class="fas fa-shield-alt"></i> {{ $t('edit_grant.safe_edit_mode') }}</div>
+                        <p class="mt-1 text-xs" v-html="$t('edit_grant.safe_edit_hint')"></p>
+                    </div>
+                </div>
+
+                <div class="flex-grow overflow-hidden flex flex-col min-h-0">
+                    <div class="bg-white rounded-xl border border-gray-200 flex-grow overflow-y-auto custom-scrollbar shadow-sm">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-100 text-gray-500 text-xs uppercase font-bold sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 border-b">{{ $t('grant_operation.project_type') }}</th>
+                                    <th class="p-3 border-b text-center">{{ $t('edit_grant.status') }}</th>
+                                    <th class="p-3 border-b text-right w-40">{{ $t('edit_grant.allocation') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm">
+                                <tr v-for="(det, idx) in editingGrant.details" :key="idx" class="hover:bg-gray-50 transition-colors">
+                                    <template v-if="projects.find(p => p.id === det.projId)">
+                                        <td class="p-3">
+                                            <div class="font-bold text-gray-800">{{ projects.find(p => p.id === det.projId).name }}</div>
+                                            <div class="flex flex-wrap gap-2 items-center mt-1">
+                                                <span class="bg-gray-200 px-1.5 rounded text-[10px] font-bold">{{ $t('steps.step_level', { level: det.level }) }}</span>
+                                            </div>
+                                            <div class="text-[10px] text-gray-400 mt-1 font-mono">
+                                                {{ $t('edit_grant.intervention_label') }} {{ projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).intervention }}
+                                            </div>
+                                        </td>
+                                        
+                                        <td class="p-3 align-middle w-1/4">
+                                            <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden relative">
+                                                <div class="h-full bg-blue-500 absolute top-0 left-0" 
+                                                     :style="{ width: Math.min(((projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded - transactions.find(t => t.id === editingGrant.id).details.find(d => d.projId === det.projId && d.level === det.level).amount + det.amount) / projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost) * 100, 100) + '%' }">
+                                                </div>
+                                            </div>
+                                            <div class="text-[9px] text-center mt-1 text-gray-400">
+                                                {{ $t('edit_grant.new_balance') }} ${{ formatMoney(projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded - transactions.find(t => t.id === editingGrant.id).details.find(d => d.projId === det.projId && d.level === det.level).amount + det.amount) }}
+                                            </div>
+                                        </td>
+
+                                        <td class="p-3">
+                                            <div class="relative">
+                                                <span class="absolute left-3 top-2 text-gray-400 font-bold">$</span>
+                                                <input type="number" 
+                                                       v-model.number="det.amount" 
+                                                       class="w-full pl-6 p-2 border rounded font-mono font-bold text-right outline-none focus:ring-2 transition-all text-gray-700 bg-gray-50 focus:bg-white"
+                                                       :class="{'border-red-500 focus:ring-red-200': det.amount > (projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost - projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded + transactions.find(t => t.id === editingGrant.id).details.find(d => d.projId === det.projId && d.level === det.level).amount)}"
+                                                       min="0"
+                                                       :max="projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).cost - projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level).funded + transactions.find(t => t.id === editingGrant.id).details.find(d => d.projId === det.projId && d.level === det.level).amount"
+                                                       @input="val => { 
+                                                           const tier = projects.find(p => p.id === det.projId).tiers.find(t => t.level === det.level);
+                                                           const originalAmt = transactions.find(t => t.id === editingGrant.id).details.find(d => d.projId === det.projId && d.level === det.level).amount;
+                                                           const maxAllowed = tier.cost - tier.funded + originalAmt;
+                                                           if(det.amount > maxAllowed) det.amount = maxAllowed;
+                                                           if(0 > det.amount) det.amount = 0;
+                                                       }">
+                                            </div>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between items-end shrink-0">
+                    <div class="text-xs text-gray-400 italic">
+                        {{ $t('edit_grant.auto_calculated') }}
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500 uppercase font-bold">{{ $t('edit_grant.new_total_grant') }}</div>
+                        <div class="text-3xl font-mono font-bold text-blue-600">
+                            ${{ formatMoney(editingGrant.details.reduce((sum, item) => sum + item.amount, 0)) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-gray-100 border-t flex justify-end gap-3 shrink-0">
+                <button @click="showEditGrantModal = false" class="px-4 py-2 rounded text-gray-600 font-bold hover:bg-gray-200 transition">{{ $t('common.cancel') }}</button>
+                <button @click="saveGrantChanges" class="px-6 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-lg transition transform hover:scale-105">{{ $t('edit_grant.save_changes') }}</button>
+            </div>
+        </div>
+    </div>
+    <!-- Gallery Management Modal (inside project modal, for upload/delete) -->
+    <div v-if="showGalleryManagementModal && modalProject" class="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm" @click.self="showGalleryManagementModal = false">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden animate-fade-in-up flex flex-col">
+            <!-- Header -->
+            <div class="p-4 bg-purple-600 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fas fa-images mr-2"></i> {{ $t('gallery.manage_title', { name: modalProject.name }) }}
+                </h3>
+                <button @click="showGalleryManagementModal = false" class="hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Upload Section -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                        <i class="fas fa-upload mr-2"></i>{{ $t('gallery.upload_photos') }}
+                    </label>
+                    <input 
+                        type="file" 
+                        @change="handleGalleryFileSelect" 
+                        accept="image/*" 
+                        multiple 
+                        class="w-full p-2 border rounded text-sm cursor-pointer bg-white"
+                        ref="galleryFileInput"
+                    >
+                    <p class="text-xs text-gray-500 mt-2">{{ $t('gallery.select_images') }}</p>
+                    <div v-if="galleryUploadFiles.length > 0" class="mt-3">
+                        <div class="text-xs font-bold text-gray-600 mb-2">{{ $t('gallery.selected_files', { count: galleryUploadFiles.length }) }}</div>
+                        <div class="flex flex-wrap gap-2">
+                            <div v-for="(file, idx) in galleryUploadFiles" :key="idx" class="text-xs bg-white px-2 py-1 rounded border border-gray-300">
+                                {{ file.name }}
+                                <button @click="removeGalleryFile(idx)" class="ml-2 text-red-600 hover:text-red-800"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <button @click="uploadGalleryImages" class="mt-3 px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">
+                            <i class="fas fa-upload mr-2"></i>{{ $t('gallery.upload_count', { count: galleryUploadFiles.length }) }}
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Current Photos Grid -->
+                <div v-if="modalProject.photos && modalProject.photos.length > 0" class="mb-6">
+                    <div class="text-sm font-bold text-gray-700 mb-3">
+                        {{ $t('gallery.current_photos', { count: modalProject.photos.length }) }}
+                        <span class="text-xs text-gray-500 font-normal ml-2">{{ $t('gallery.set_main_hint') }}</span>
+                    </div>
+                    <div class="grid grid-cols-3 md:grid-cols-4 gap-4">
+                        <div 
+                            v-for="(photo, idx) in modalProject.photos" 
+                            :key="photo.id"
+                            class="relative group cursor-pointer"
+                            @click="setMainPhotoInModal(idx)"
+                        >
+                            <img :src="getPhotoUrl(photo, true)" class="w-full h-32 object-cover rounded-lg border-2" :class="(modalProject.mainPhoto === photo.id || photo.isMain) ? 'border-green-500' : 'border-gray-300'" @error="handleImageError($event)">
+                            <div v-if="modalProject.mainPhoto === photo.id || photo.isMain" class="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                {{ $t('gallery.main_badge') }}
+                            </div>
+                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <button @click.stop="deleteGalleryImageFromModal(idx)" class="bg-red-600 text-white px-3 py-1 rounded font-bold text-sm">
+                                    <i class="fas fa-trash mr-1"></i>{{ $t('gallery.delete') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div v-else class="text-center py-12 text-gray-400">
+                    <i class="fas fa-images text-5xl mb-4"></i>
+                    <p class="font-bold">{{ $t('gallery.empty_upload') }}</p>
+                    <p class="text-sm mt-2">{{ $t('gallery.empty_upload_desc') }}</p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+                <button @click="showGalleryManagementModal = false" class="px-4 py-2 bg-gray-300 text-gray-800 rounded font-bold hover:bg-gray-400">{{ $t('gallery.close') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gallery Viewer Modal (read-only, for viewing photos) -->
+    <div v-if="showGalleryModal && activeProjectGallery" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[90] p-4 backdrop-blur-sm" @click.self="closeGalleryViewer()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-fade-in-up flex flex-col">
+            <!-- Header -->
+            <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fas fa-images mr-2"></i> {{ $t('gallery.title', { name: activeProjectGallery.name }) }}
+                    <span class="ml-3 text-sm font-normal text-gray-300">
+                        {{ galleryIndex + 1 }} / {{ activeProjectGallery._totalPhotos || (activeProjectGallery.photos ? activeProjectGallery.photos.length : 0) }}
+                    </span>
+                </h3>
+                <button @click="closeGalleryViewer()" class="hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <!-- Content - Image Slider -->
+            <div v-if="(activeProjectGallery._totalPhotos || (activeProjectGallery.photos && activeProjectGallery.photos.length > 0))" class="flex-1 flex items-center justify-center relative bg-black p-4">
+                <!-- Previous Button -->
+                <button 
+                    v-if="(activeProjectGallery._totalPhotos || 0) > 1"
+                    @click="navigateGallery('prev')"
+                    class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg transition z-10"
+                    :title="$t('gallery.prev_photo')"
+                    :disabled="galleryLoadingPhoto"
+                >
+                    <i class="fas fa-chevron-left text-xl"></i>
+                </button>
+                
+                <!-- Main Image -->
+                <div class="flex-1 flex items-center justify-center max-h-full relative">
+                    <!-- Loading indicator -->
+                    <div v-if="galleryLoadingPhoto || !activeProjectGallery.photos[galleryIndex]" class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-white text-lg">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>{{ $t('gallery.loading_photo') }}
+                        </div>
+                    </div>
+                    
+                    <!-- Image (only show if loaded) -->
+                    <img 
+                        v-if="activeProjectGallery.photos[galleryIndex]"
+                        :src="getPhotoUrl(activeProjectGallery.photos[galleryIndex], false)" 
+                        class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                        @error="handleImageError($event)"
+                        @load="galleryLoadingPhoto = false"
+                        :alt="$t('gallery.photo_alt', { current: galleryIndex + 1, total: activeProjectGallery._totalPhotos || activeProjectGallery.photos.length })"
+                    >
+                </div>
+                
+                <!-- Next Button -->
+                <button 
+                    v-if="(activeProjectGallery._totalPhotos || 0) > 1"
+                    @click="navigateGallery('next')"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-3 shadow-lg transition z-10"
+                    :title="$t('gallery.next_photo')"
+                    :disabled="galleryLoadingPhoto"
+                >
+                    <i class="fas fa-chevron-right text-xl"></i>
+                </button>
+                
+                <!-- Thumbnail Strip (bottom) - Show only loaded thumbnails -->
+                <div v-if="(activeProjectGallery._totalPhotos || 0) > 1 && galleryPhotos.length > 0" class="absolute bottom-4 left-0 right-0 px-4">
+                    <div class="flex gap-2 justify-center overflow-x-auto pb-2">
+                        <div 
+                            v-for="(photo, idx) in galleryPhotos" 
+                            :key="photo ? photo.id : idx"
+                            @click="navigateGallery(idx)"
+                            class="flex-shrink-0 cursor-pointer border-2 rounded transition"
+                            :class="idx === galleryIndex ? 'border-blue-500' : 'border-transparent hover:border-gray-400'"
+                        >
+                            <img 
+                                v-if="photo"
+                                :src="getPhotoUrl(photo, true)" 
+                                class="w-16 h-16 object-cover rounded"
+                                @error="handleImageError($event)"
+                            >
+                            <div v-else class="w-16 h-16 bg-gray-700 rounded flex items-center justify-center">
+                                <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                            </div>
+                        </div>
+                        <!-- Placeholder for unloaded photos -->
+                        <div 
+                            v-for="idx in (activeProjectGallery._totalPhotos - galleryPhotos.length)"
+                            :key="'placeholder-' + (galleryPhotos.length + idx - 1)"
+                            class="flex-shrink-0 w-16 h-16 bg-gray-800 rounded border-2 border-transparent flex items-center justify-center"
+                        >
+                            <i class="fas fa-image text-gray-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div v-else class="flex-1 flex items-center justify-center text-gray-400">
+                <div class="text-center">
+                    <i class="fas fa-images text-5xl mb-4"></i>
+                    <p class="font-bold">{{ $t('gallery.empty_title') }}</p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex items-center gap-2">
+                <!-- Main Photo badge -->
+                <span v-if="activeProjectGallery.photos && activeProjectGallery.photos[galleryIndex] && (activeProjectGallery.mainPhoto === activeProjectGallery.photos[galleryIndex].id || activeProjectGallery.photos[galleryIndex].isMain)" class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">
+                    {{ $t('gallery.main_photo_badge') }}
+                </span>
+                <!-- Step label for step photos (expanded tier) -->
+                <template v-if="galleryPhotos[galleryIndex] && galleryPhotos[galleryIndex].tier">
+                    <span class="text-sm font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">
+                        {{ $t('gallery.step_level', { level: galleryPhotos[galleryIndex].expand && galleryPhotos[galleryIndex].expand.tier ? galleryPhotos[galleryIndex].expand.tier.level : '?' }) }}
+                    </span>
+                    <!-- Intervention badge -->
+                    <span v-if="galleryPhotos[galleryIndex].context === 'intervention'" class="bg-indigo-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                        {{ $t('gallery.intervention_badge') }}
+                    </span>
+                    <!-- Days after completion (for intervention photos) -->
+                    <span v-if="galleryPhotos[galleryIndex].context === 'intervention' && galleryPhotos[galleryIndex].expand && galleryPhotos[galleryIndex].expand.intervention && galleryPhotos[galleryIndex].expand.tier && galleryPhotos[galleryIndex].expand.tier.completedAt" class="text-xs text-gray-500">
+                        {{ $t('gallery.days_after_completion', { days: Math.round((new Date(galleryPhotos[galleryIndex].expand.intervention.date).getTime() - new Date(galleryPhotos[galleryIndex].expand.tier.completedAt).getTime()) / 86400000) }) }}
+                    </span>
+                    <!-- Step description -->
+                    <span v-if="galleryPhotos[galleryIndex].expand && galleryPhotos[galleryIndex].expand.tier && galleryPhotos[galleryIndex].expand.tier.intervention" class="text-sm text-gray-600 truncate max-w-md">
+                        {{ galleryPhotos[galleryIndex].expand.tier.intervention }}
+                    </span>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Step Gallery Manager Modal (for uploading photos during step start/complete) -->
+    <div v-if="showStepGalleryModal && stepGalleryTier && stepGalleryProject" class="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm" @click.self="closeStepGalleryManager">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden animate-fade-in-up flex flex-col">
+            <!-- Header -->
+            <div class="p-4 text-white flex justify-between items-center" :class="stepGalleryContext === 'step_start' ? 'bg-blue-600' : 'bg-orange-600'">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fas fa-images mr-2"></i> 
+                    {{ stepGalleryContext === 'step_start' ? $t('gallery.step_start') : $t('gallery.step_completion') }} Photos
+                    <span class="ml-2 text-sm font-normal opacity-80">{{ $t('gallery.step_gallery_subtitle', { project: stepGalleryProject.title, level: stepGalleryTier.level }) }}</span>
+                </h3>
+                <button @click="closeStepGalleryManager" class="hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <!-- Upload Section -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">
+                        <i class="fas fa-upload mr-2"></i>{{ $t('gallery.upload_photos') }}
+                    </label>
+                    <input 
+                        type="file" 
+                        @change="handleStepGalleryFileSelect" 
+                        accept="image/*" 
+                        multiple 
+                        class="w-full p-2 border rounded text-sm cursor-pointer bg-white"
+                        ref="stepGalleryFileInput"
+                    >
+                    <p class="text-xs text-gray-500 mt-2">{{ $t('gallery.select_images_step') }}</p>
+                    <div v-if="stepGalleryUploadFiles.length > 0" class="mt-3">
+                        <div class="text-xs font-bold text-gray-600 mb-2">{{ $t('gallery.selected_files', { count: stepGalleryUploadFiles.length }) }}</div>
+                        <div class="flex flex-wrap gap-2">
+                            <div v-for="(file, idx) in stepGalleryUploadFiles" :key="idx" class="text-xs bg-white px-2 py-1 rounded border border-gray-300">
+                                {{ file.name }}
+                                <button @click="removeStepGalleryFile(idx)" class="ml-2 text-red-600 hover:text-red-800"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <button @click="uploadStepGalleryImages" class="mt-3 px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">
+                            <i class="fas fa-upload mr-2"></i>{{ $t('gallery.upload_count', { count: stepGalleryUploadFiles.length }) }}
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Current Photos Grid -->
+                <div v-if="stepGalleryPhotos && stepGalleryPhotos.length > 0" class="mb-6">
+                    <div class="text-sm font-bold text-gray-700 mb-3">
+                        {{ $t('gallery.current_photos', { count: stepGalleryPhotos.length }) }}
+                    </div>
+                    <div class="grid grid-cols-3 md:grid-cols-4 gap-4">
+                        <div 
+                            v-for="(photo, idx) in stepGalleryPhotos" 
+                            :key="photo.id"
+                            class="relative group"
+                        >
+                            <img :src="getPhotoUrl(photo, true)" class="w-full h-32 object-cover rounded-lg border-2 border-gray-300" @error="handleImageError($event)">
+                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <button @click="deleteStepGalleryPhoto(photo.id)" class="bg-red-600 text-white px-3 py-1 rounded font-bold text-sm">
+                                    <i class="fas fa-trash mr-1"></i>{{ $t('gallery.delete') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div v-else class="text-center py-12 text-gray-400">
+                    <i class="fas fa-images text-5xl mb-4"></i>
+                    <p class="font-bold">{{ $t('gallery.empty_upload') }}</p>
+                    <p class="text-sm mt-2">{{ $t('gallery.empty_upload_desc') }}</p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+                <button @click="closeStepGalleryManager" class="px-4 py-2 bg-gray-300 text-gray-800 rounded font-bold hover:bg-gray-400">{{ $t('gallery.done') }}</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Step Gallery Viewer Modal (read-only, for viewing in timeline) -->
+    <div v-if="showStepGalleryViewer && stepGalleryViewerPhotos.length > 0" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 backdrop-blur-sm" @click.self="closeStepGalleryViewer">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-fade-in-up flex flex-col">
+            <!-- Header -->
+            <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center">
+                    <i class="fas fa-images mr-2"></i> {{ $t('gallery.step_photos_title') }}
+                    <span class="ml-3 text-sm font-normal text-gray-300">
+                        {{ stepGalleryViewerIndex + 1 }} / {{ stepGalleryViewerPhotos.length }}
+                    </span>
+                </h3>
+                <button @click="closeStepGalleryViewer" class="hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <!-- Main Image Area -->
+            <div class="flex-1 flex items-center justify-center bg-gray-900 relative overflow-hidden">
+                <!-- Navigation Arrows -->
+                <button v-if="stepGalleryViewerPhotos.length > 1" @click="navigateStepGalleryViewer('prev')" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition z-10">
+                    <i class="fas fa-chevron-left text-xl"></i>
+                </button>
+                <button v-if="stepGalleryViewerPhotos.length > 1" @click="navigateStepGalleryViewer('next')" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition z-10">
+                    <i class="fas fa-chevron-right text-xl"></i>
+                </button>
+                
+                <!-- Current Image -->
+                <img v-if="stepGalleryViewerPhotos[stepGalleryViewerIndex]" 
+                     :src="getPhotoUrl(stepGalleryViewerPhotos[stepGalleryViewerIndex], false)" 
+                     class="max-w-full max-h-[60vh] object-contain"
+                     @error="handleImageError($event)">
+            </div>
+            
+            <!-- Thumbnails -->
+            <div v-if="stepGalleryViewerPhotos.length > 1" class="p-4 bg-gray-800 overflow-x-auto">
+                <div class="flex gap-2 justify-center">
+                    <div v-for="(photo, idx) in stepGalleryViewerPhotos" 
+                         :key="photo.id"
+                         @click="navigateStepGalleryViewer(idx)"
+                         class="flex-shrink-0 w-16 h-16 rounded cursor-pointer border-2 transition overflow-hidden"
+                         :class="idx === stepGalleryViewerIndex ? 'border-white' : 'border-transparent opacity-60 hover:opacity-100'">
+                        <img :src="getPhotoUrl(photo, true)" class="w-full h-full object-cover" @error="handleImageError($event)">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                <button @click="closeStepGalleryViewer" class="px-4 py-2 bg-gray-300 text-gray-800 rounded font-bold hover:bg-gray-400">{{ $t('common.close') }}</button>
+            </div>
+        </div>
+    </div>
+    

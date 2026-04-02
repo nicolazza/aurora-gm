@@ -1,0 +1,452 @@
+        <div v-else-if="currentView === 'projects'" class="animate-fade-in-up">
+            <div class="flex flex-col gap-4 mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="relative inline-flex bg-gray-100 rounded-xl p-1">
+                            <div class="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm transition-all duration-300 ease-in-out" :style="{ left: projectsTab === 'completed' ? '4px' : '50%', width: 'calc(50% - 4px)' }"></div>
+                            <button @click="projectsTab = 'completed'" class="relative z-10 px-6 py-2.5 rounded-lg text-xl font-extrabold whitespace-nowrap transition-colors duration-300" :class="projectsTab === 'completed' ? 'text-gray-800' : 'text-gray-400 hover:text-gray-500'">{{ $t('projects.tab_completed') }} <span class="text-sm font-medium text-gray-400">({{ completedProjects.length }})</span></button>
+                            <button @click="projectsTab = 'backlog'" class="relative z-10 px-6 py-2.5 rounded-lg text-xl font-extrabold whitespace-nowrap transition-colors duration-300" :class="projectsTab === 'backlog' ? 'text-gray-800' : 'text-gray-400 hover:text-gray-500'">{{ $t('projects.tab_backlog') }} <span class="text-sm font-medium text-gray-400">({{ baseBacklogList.length }})</span></button>
+                        </div>
+                        <button v-if="hasPerm('gm.createProjects') && projectsTab === 'backlog'" @click="openProjectModal()" class="text-white w-8 h-8 rounded-full shadow hover:opacity-90 flex items-center justify-center transition-colors duration-300" :style="{ backgroundColor: settings.theme.primaryBtn }" :title="$t('projects.add_project')"><i class="fas fa-plus text-xs"></i></button>
+                    </div>
+                    <div v-if="false" class="flex items-center gap-1 border border-gray-200 rounded-lg p-0.5">
+                        <button @click="projectViewMode = 'cards'" class="p-1.5 rounded-md transition-colors" :class="projectViewMode === 'cards' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600'">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" /></svg>
+                        </button>
+                        <button @click="projectViewMode = 'table'" class="p-1.5 rounded-md transition-colors" :class="projectViewMode === 'table' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600'">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
+                        </button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button @click="toggleMap" class="px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition flex items-center gap-2" :class="showMap ? 'bg-blue-50 border-blue-300 text-blue-700' : ''">
+                            <i class="far fa-map"></i> {{ showMap ? $t('projects.hide_map') : $t('projects.show_map') }}
+                        </button>
+                        <div class="relative">
+                            <input v-model="searchQuery" type="text" :placeholder="$t('projects.search_placeholder')" class="border p-2 pr-7 rounded-lg text-sm w-48 focus:ring-green-500 outline-none">
+                            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <select v-if="projectsTab === 'backlog'" v-model="sortOrderBacklog" class="bg-white border text-gray-700 text-sm rounded-lg p-2 focus:ring-green-500 cursor-pointer">
+                            <option value="score">{{ $t('projects.sort_score') }}</option><option value="newest">{{ $t('projects.sort_newest') }}</option><option value="oldest">{{ $t('projects.sort_oldest') }}</option><option value="inprogress">{{ $t('projects.sort_in_progress') }}</option><option value="status">{{ $t('projects.sort_closest_done') }}</option><option value="expensive">{{ $t('projects.sort_expensive') }}</option><option value="cheap">{{ $t('projects.sort_cheap') }}</option>
+                        </select>
+                        <select v-if="projectsTab === 'completed'" v-model="sortOrderCompleted" class="bg-white border text-gray-700 text-sm rounded-lg p-2 focus:ring-green-500 cursor-pointer">
+                            <option value="newest">{{ $t('projects.sort_newest') }}</option><option value="oldest">{{ $t('projects.sort_oldest') }}</option><option value="expensive">{{ $t('projects.sort_expensive') }}</option><option value="cheap">{{ $t('projects.sort_cheap') }}</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Map View -->
+                <div v-if="showMap" class="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
+                    <div id="projectsMap" style="height: 400px; width: 100%;"></div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <button @click="filterCategory = 'All'" class="px-4 py-2 rounded-full text-sm font-bold transition border" :class="filterCategory === 'All' ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'">{{ $t('projects.filter_all') }} ({{ getCategoryCount('All', projectsTab) }})</button>
+                    <button v-for="cat in categories.filter(c => (projectsTab === 'completed' || c !== 'Scholarship') && getCategoryCount(c, projectsTab) > 0)" :key="cat" @click="filterCategory = cat" class="px-4 py-2 rounded-full text-sm font-bold transition border hover:bg-gray-50" :class="filterCategory === cat ? 'text-white' : 'bg-white border-gray-200'" :style="filterCategory === cat ? { backgroundColor: getCategoryColor(cat), borderColor: getCategoryColor(cat) } : { color: getCategoryColor(cat) }">{{ getCatName(cat) }} ({{ getCategoryCount(cat, projectsTab) }})</button>
+                </div>
+            </div>
+
+            <div v-if="projectsLoading" class="flex items-center justify-center py-20">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-3xl mb-3" :style="{ color: settings.theme.headerBg }"></i>
+                    <p class="text-sm text-gray-400 font-bold">Loading projects...</p>
+                </div>
+            </div>
+
+            <div v-else-if="(projectsTab === 'backlog' ? visibleBacklog : visibleCompleted).length === 0" class="text-center py-20 text-gray-400 italic">{{ $t('projects.no_projects_found') }}</div>
+
+            <!-- CARD VIEW -->
+            <div v-if="projectViewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div v-for="proj in (projectsTab === 'backlog' ? visibleBacklog : visibleCompleted)" :key="proj.id" :data-project-id="proj.id" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition relative group animate-fade-in-up" :class="{ 'ring-4 ring-yellow-400 animate-pulse': highlightedProjectId === proj.id }">
+                    <div v-if="hasPerm('gm.editProjectMeta') || hasPerm('gm.editProjectFull') || hasPerm('gm.deleteProjects')" class="absolute top-4 right-12 opacity-0 group-hover:opacity-100 transition duration-200 flex gap-2 z-20">
+                        <button v-if="hasPerm('gm.editProjectMeta') || hasPerm('gm.editProjectFull')" @click.stop="openProjectModal(proj)" class="bg-blue-100 text-blue-600 hover:bg-blue-200 p-1.5 rounded shadow text-xs" :title="$t('projects.edit_tooltip')"><i class="fas fa-edit"></i></button>
+                        <button v-if="hasPerm('gm.deleteProjects') && !(proj.tiers && proj.tiers.some(t => t.status === 'in_progress' || t.status === 'completed'))" @click.stop="showConfirm($t('projects.delete_confirm'), () => deleteProject(proj.id))" class="bg-red-100 text-red-600 hover:bg-red-200 p-1.5 rounded shadow text-xs" :title="$t('projects.delete_tooltip')"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div>
+                        <!-- First row: Title on left, Total Value on right -->
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-bold text-gray-800 leading-tight">{{ proj.title }}</h3>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-lg" :style="{ color: settings.theme.colorProjectValue }">${{ formatMoney(proj.type === 'scholarship' ? ((proj.scholarshipValue || 0) + (proj.scholarshipFixedCost || 0)) : getProjectTotalValue(proj)) }}</span>
+                            </div>
+                        </div>
+                        <!-- Second row: Budget breakdown (2/3) + Icons (1/3) -->
+                        <div class="flex items-stretch mb-3 rounded-lg overflow-hidden">
+                            <!-- Budget breakdown for REGULAR projects -->
+                            <div v-if="proj.type !== 'scholarship'" class="flex-[2] flex bg-gray-100 py-2">
+                                <div class="flex-1 text-center">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('grants.th_monetary') }}</div>
+                                    <div class="font-bold text-sm" :class="getProjectTotalMonetary(proj) > 0 ? 'project-num project-num-monetary' : 'project-num-zero'">${{ formatMoney(getProjectTotalMonetary(proj)) }}</div>
+                                </div>
+                                <div class="flex-1 text-center border-l border-gray-200">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('grants.th_inkind') }}</div>
+                                    <div class="font-bold text-sm" :class="getProjectTotalInkindValue(proj) > 0 ? 'project-num project-num-inkind' : 'project-num-zero'">${{ formatMoney(getProjectTotalInkindValue(proj)) }}</div>
+                                </div>
+                                <div class="flex-1 text-center border-l border-gray-200">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('grants.th_community') }}</div>
+                                    <div class="font-bold text-sm" :class="getProjectTotalCommunityValue(proj) > 0 ? 'project-num project-num-community' : 'project-num-zero'">${{ formatMoney(getProjectTotalCommunityValue(proj)) }}</div>
+                                </div>
+                                <div v-if="getProjectTotalDonations(proj) > 0" class="flex-1 text-center border-l border-gray-200">
+                                    <div class="text-[10px] text-gray-400 uppercase">Donations</div>
+                                    <div class="font-bold text-sm project-num project-num-donations">${{ formatMoney(getProjectTotalDonations(proj)) }}</div>
+                                </div>
+                            </div>
+                            <!-- Budget breakdown for SCHOLARSHIPS -->
+                            <div v-else class="flex-[2] flex bg-gray-100 py-2">
+                                <div class="flex-1 text-center">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('map_modal.fixed_cost') }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: (proj.scholarshipFixedCost || 0) > 0 ? settings.theme.colorMonetary : '#d1d5db' }">${{ formatMoney(proj.scholarshipFixedCost || 0) }}</div>
+                                </div>
+                                <div class="flex-1 text-center border-l border-gray-200">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('map_modal.inkind_value') }}</div>
+                                    <div class="font-bold text-yellow-600 text-sm">${{ formatMoney(proj.scholarshipValue || 0) }}</div>
+                                </div>
+                            </div>
+                            <!-- Icons for REGULAR projects: 1/3 width -->
+                            <div v-if="proj.type !== 'scholarship'" class="flex-1 flex justify-center items-center gap-1 bg-gray-50 py-2">
+                                <button @click.stop="openProjectInfoModal(proj)"
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg text-gray-400 hover:text-blue-600 cursor-pointer"
+                                        :title="$t('proj_info.open_info')">
+                                    <svg class="w-[1.15em] h-[1.15em]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                                </button>
+                                <button @click.stop="proj.coordinates && openMapModal(proj)" 
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg" 
+                                        :class="proj.coordinates ? 'text-gray-400 hover:text-green-600 cursor-pointer' : 'text-gray-200 cursor-not-allowed'">
+                                    <i class="fas fa-map-marker-alt text-[1em] leading-none"></i>
+                                </button>
+                                <button @click.stop="hasRealImages(proj) && openGalleryViewer(proj)" 
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg" 
+                                        :class="hasRealImages(proj) ? 'text-gray-400 hover:text-blue-600 cursor-pointer' : 'text-gray-200 cursor-not-allowed'">
+                                    <svg class="w-[1em] h-[1em] shrink-0" aria-hidden="true"><use href="#icon-image-regular"/></svg>
+                                </button>
+                                <button @click.stop="hasStartedTiers(proj) && openProjectTransactionHistory(proj)" 
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg" 
+                                        :class="hasStartedTiers(proj) ? 'text-gray-400 hover:text-indigo-600 cursor-pointer' : 'text-gray-200 cursor-not-allowed'">
+                                    <i class="fas fa-history text-[1em] leading-none"></i>
+                                </button>
+                            </div>
+                            <!-- Icons for SCHOLARSHIPS: only camera -->
+                            <div v-else class="flex-1 flex justify-center items-center gap-1 bg-gray-50 py-2">
+                                <button @click.stop="openProjectInfoModal(proj)"
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg text-gray-400 hover:text-blue-600 cursor-pointer"
+                                        :title="$t('proj_info.open_info')">
+                                    <svg class="w-[1.15em] h-[1.15em]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                                </button>
+                                <button @click.stop="hasRealImages(proj) && openGalleryViewer(proj)" 
+                                        class="inline-flex items-center justify-center w-8 h-8 shrink-0 transition text-lg" 
+                                        :class="hasRealImages(proj) ? 'text-gray-400 hover:text-blue-600 cursor-pointer' : 'text-gray-200 cursor-not-allowed'">
+                                    <svg class="w-[1em] h-[1em] shrink-0" aria-hidden="true"><use href="#icon-image-regular"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Second row: Thumbnail on left, Content on right -->
+                        <div class="flex items-start gap-4">
+                            <div class="w-28 h-28 rounded-lg bg-gray-200 flex-shrink-0 flex items-center justify-center overflow-hidden" :class="{ 'bg-gray-100': hasRealImages(proj) }">
+                                <img v-if="hasRealImages(proj) && getMainImageUrl(proj, true)" 
+                                     :src="getMainImageUrl(proj, true)" 
+                                     class="w-full h-full object-cover" 
+                                     loading="lazy" 
+                                     @error="handleThumbnailError($event, proj)"
+                                     :data-thumbnail-url="getMainImageUrl(proj, true)"
+                                     :data-full-image-url="getMainImageUrl(proj, false)">
+                                <i v-else class="fas fa-image text-gray-400 text-2xl"></i>
+                            </div>
+                            <div class="w-full flex flex-col min-h-[7rem]">
+                                <div>
+                                    <div class="flex flex-wrap gap-1 mb-2 items-center justify-between">
+                                        <div class="flex flex-wrap gap-1">
+                                            <span v-if="proj.type === 'scholarship'" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor('Scholarship') }">{{ $t('projects.scholarship') }}</span>
+                                            <span v-else-if="proj.categoryName" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(proj.categoryName) }">{{ getCatName(proj.categoryName) }}</span>
+                                            <span v-else-if="proj.categories && proj.categories.length" v-for="cat in proj.categories" :key="cat" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(cat) }">{{ getCatName(cat) }}</span>
+                                        </div>
+                                        <span v-if="getWorkInProgressTiers(proj).length > 0" class="text-[9px] font-bold px-2 py-0.5 rounded uppercase" :style="{ backgroundColor: colorAlpha(settings.theme.colorBarInProgress, 0.15), color: settings.theme.colorBarInProgress }">{{ $t('projects.steps_in_progress', { count: getWorkInProgressTiers(proj).length }) }}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 flex items-center gap-2 mb-2">
+                                        <span class="inline-flex items-center gap-1"><svg class="w-3 h-3 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>{{ new Date(getProjectCreatedDate(proj)).toLocaleDateString() }}</span>
+                                        <span v-if="projectsTab === 'backlog'" class="ml-2">{{ $t('projects.days_old', { days: getDaysOld(getProjectCreatedDate(proj)) }) }}</span>
+                                        <span v-else class="text-gray-300">|</span>
+                                        <span v-if="projectsTab === 'completed' && proj.type === 'scholarship'" class="text-yellow-700">
+                                            <i class="fas fa-play text-[10px] mr-1"></i>{{ proj.scholarshipStartDate ? new Date(proj.scholarshipStartDate).toLocaleDateString() : $t('common.na') }}
+                                            <span class="mx-1">→</span>
+                                            <i class="fas fa-flag-checkered text-[10px] mr-1"></i>{{ proj.scholarshipEndDate ? new Date(proj.scholarshipEndDate).toLocaleDateString() : $t('common.na') }}
+                                        </span>
+                                        <span v-if="projectsTab === 'completed' && proj.type !== 'scholarship'" class="font-bold" :style="{ color: settings.theme.colorProjectValue }">{{ $t('projects.fully_funded_on', { date: getProjectCompletedDate(proj) }) }}</span>
+                                    </div>
+                                </div>
+                                <!-- Description excerpt (always visible) -->
+                                <div v-if="proj.description" class="relative flex-1">
+                                    <p class="text-xs text-gray-400 group-hover:text-gray-600 font-light transition-colors" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">{{ stripHtml(proj.description) }}</p>
+                                    <a href="#" @click.prevent.stop="openProjectInfoModal(proj)" class="absolute bottom-0 right-0 w-1/2 text-xs text-gray-500 font-normal hover:underline bg-gradient-to-l from-white from-60% to-transparent pl-[20%]">...more</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Progress/toggle row: extends to card edges for full-width hover -->
+                    <button
+                        type="button"
+                        class="w-[calc(100%+2rem)] -mx-4 mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 px-4 hover:bg-gray-100 transition-colors"
+                        :class="proj.expanded ? 'pb-3 rounded-md' : '-mb-4 pb-4 rounded-b-xl'"
+                        @click="toggleExpand(proj)"
+                    >
+                        <span class="text-xs font-bold text-gray-500 tabular-nums text-left">
+                            {{ (proj.tiers || []).filter(t => t.status === 'completed' || t.status === 'in_progress').length }}/{{ (proj.tiers || []).length }}
+                        </span>
+                        <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden flex flex-1">
+                            <div class="h-full transition-all"
+                                 :style="{ backgroundColor: settings.theme.colorBarCompleted, width: ((proj.tiers && proj.tiers.length) ? (proj.tiers.filter(t => t.status === 'completed').length / proj.tiers.length * 100) : 0) + '%' }"></div>
+                            <div class="h-full transition-all"
+                                 :style="{ backgroundColor: settings.theme.colorBarInProgress, width: ((proj.tiers && proj.tiers.length) ? (proj.tiers.filter(t => t.status === 'in_progress').length / proj.tiers.length * 100) : 0) + '%' }"></div>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 transition-transform duration-300" :class="{ 'rotate-180': proj.expanded }"></i>
+                    </button>
+                    
+                    <transition name="expand">
+                        <div v-if="proj.expanded" class="mt-4">
+                            <div v-if="proj.type === 'scholarship' && proj.scholarshipFeedback" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                <div class="text-[10px] text-yellow-700 font-bold uppercase mb-2"><i class="fas fa-comment-dots mr-1"></i> {{ $t('steps.feedback_notes') }}</div>
+                                <div class="text-sm text-gray-700" v-html="processHtmlForDisplay(proj.scholarshipFeedback)"></div>
+                            </div>
+                            <!-- NEW: Simplified step cards -->
+                            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div v-for="tier in proj.tiers" :key="tier.level" class="flex flex-col">
+                                  <div class="rounded-lg p-3 border relative flex flex-col flex-1"
+                                     :class="tier.status === 'backlog' || !tier.status ? 'bg-gray-50 border-gray-200' : ''"
+                                     :style="tier.status === 'completed' ? { backgroundColor: colorAlpha(settings.theme.colorTierCompleted, 0.15), borderColor: settings.theme.colorTierCompleted } : (tier.status === 'in_progress' ? { backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.08), borderColor: settings.theme.colorTierInProgress } : {})">
+                                    <!-- Step Header -->
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="text-sm font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">{{ $t('steps.step_level', { level: tier.level }) }}</span>
+                                            <div class="relative flex items-center gap-1 ml-1 mt-0.5">
+                                                <button v-if="tier.algorithmSelectionType === 'empathy'" 
+                                                        @click.stop="showEmpathyExplanationModal = true"
+                                                        class="text-purple-500 hover:text-purple-700 transition"
+                                                        :title="$t('score.empathy_selection')">
+                                                    <i class="fas fa-star text-[10px]"></i>
+                                                </button>
+                                                <button @click.stop="toggleScorePopover(tier.id)" 
+                                                        class="text-gray-500 hover:text-gray-800 text-xs font-bold transition cursor-pointer">
+                                                    {{ computeStepScore(tier).toFixed(1) }}
+                                                </button>
+                                            <!-- Score Popover Backdrop (click to close) -->
+                                            <div v-if="activeScorePopover === tier.id" 
+                                                 class="fixed inset-0 z-40"
+                                                 @click="closeScorePopover"></div>
+                                            <!-- Score Breakdown Popover -->
+                                            <div v-if="activeScorePopover === tier.id" 
+                                                 class="absolute left-full top-1/2 -translate-y-1/2 ml-1 w-72 bg-white rounded-lg shadow-xl border z-50 p-4 text-sm"
+                                                 @click.stop>
+                                                <!-- Close button -->
+                                                <button @click="closeScorePopover" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                                <div class="flex justify-between items-center mb-2 pb-1 border-b pr-4">
+                                                    <span class="font-bold text-gray-700">{{ $t('score.score_breakdown') }}</span>
+                                                    <button @click="showScoreExplanationModal = true; closeScorePopover();" class="text-blue-500 hover:text-blue-700 text-xs">{{ $t('score.what_is_this') }}</button>
+                                                </div>
+                                                <!-- Flags -->
+                                                <div v-if="tier.emergency || tier.externalDependency" class="mb-2 pb-2 border-b">
+                                                    <span v-if="tier.emergency" class="inline-block bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold mr-1">🚨 {{ $t('score.emergency') }}</span>
+                                                    <span v-if="tier.externalDependency" class="inline-block bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">⏳ {{ $t('score.external_dependency') }}</span>
+                                                </div>
+                                                <!-- Impact Factors -->
+                                                <div class="grid grid-cols-3 gap-1.5 mb-2">
+                                                    <div class="text-center p-1.5 bg-purple-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.urgency') }}</div>
+                                                        <div class="font-bold text-purple-700 text-base">{{ tier.u || 5 }}</div>
+                                                    </div>
+                                                    <div class="text-center p-1.5 bg-blue-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.breadth') }}</div>
+                                                        <div class="font-bold text-blue-700 text-base">{{ tier.b || 3 }}</div>
+                                                    </div>
+                                                    <div class="text-center p-1.5 bg-green-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.depth') }}</div>
+                                                        <div class="font-bold text-green-700 text-base">{{ tier.d || 3 }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-3 gap-1.5 mb-2">
+                                                    <div class="text-center p-1.5 bg-yellow-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.neglectedness') }}</div>
+                                                        <div class="font-bold text-yellow-700 text-base">{{ tier.n || 3 }}</div>
+                                                    </div>
+                                                    <div class="text-center p-1.5 bg-gray-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.confidence') }}</div>
+                                                        <div class="font-bold text-gray-700 text-base">{{ (tier.k || 0.9).toFixed(2) }}</div>
+                                                    </div>
+                                                    <div class="text-center p-1.5 bg-indigo-50 rounded">
+                                                        <div class="text-[10px] text-gray-500">{{ $t('score.estimated_days') }}</div>
+                                                        <div class="font-bold text-indigo-700 text-base">{{ tier.estDays || 7 }}</div>
+                                                    </div>
+                                                </div>
+                                                <!-- Calculated Values -->
+                                                <div class="text-xs text-gray-500 space-y-1 border-t pt-2">
+                                                    <div class="flex justify-between"><span>{{ $t('score.impact') }}</span><span class="font-mono">{{ computeImpact(tier).toFixed(2) }}</span></div>
+                                                    <div class="flex justify-between"><span>{{ $t('score.base_cost') }}</span><span class="font-mono">${{ formatMoney(computeBaseCost(tier)) }}</span></div>
+                                                    <div class="flex justify-between"><span>{{ $t('score.risk') }}</span><span class="font-mono">{{ getRiskEstimate(tier.externalDependency).toFixed(2) }}</span></div>
+                                                </div>
+                                            </div>
+                                            </div>
+                                            <span v-if="tier.step_code" class="text-[10px] font-mono text-gray-400 ml-1">{{ tier.step_code }}</span>
+                                        </div>
+                                        <!-- Status badge (top-right) -->
+                                        <span class="text-[10px] font-bold px-3 py-1 rounded shrink-0"
+                                              :class="tier.status === 'backlog' || !tier.status ? 'bg-gray-200 text-gray-600' : ''"
+                                              :style="tier.status === 'completed' ? { backgroundColor: settings.theme.colorTierCompleted, color: '#FFFFFF' } : (tier.status === 'in_progress' ? { backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.2), color: settings.theme.colorTierInProgress } : {})">
+                                            {{ tier.status === 'completed' ? $t('steps.completed') : (tier.status === 'in_progress' ? $t('steps.in_progress') : $t('steps.backlog')) }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Intervention -->
+                                    <div class="text-xs text-gray-700 font-light bg-white/50 p-2 rounded mb-2 flex-grow">
+                                        <strong class="text-gray-500 block text-[9px] uppercase mb-1 font-bold">{{ $t('steps.intervention') }}</strong>
+                                        {{ tier.intervention || $t('steps.no_description') }}
+                                    </div>
+                                    
+                                    <!-- Budget Summary (uses verified values for completed tiers) -->
+                                    <div class="text-[9px] space-y-1 border-t pt-2">
+                                        <div class="flex justify-between" :style="{ color: getTierDisplayMonetary(tier) > 0 ? settings.theme.colorMonetary : '#d1d5db' }">
+                                            <span class="uppercase"><i class="fas fa-dollar-sign mr-1"></i>{{ $t('steps.monetary_label') }}</span>
+                                            <span class="font-bold">${{ formatMoney(getTierDisplayMonetary(tier)) }}</span>
+                                        </div>
+                                        <div class="flex justify-between" :style="{ color: getTierDisplayInkindValue(tier) > 0 ? settings.theme.colorInkind : '#d1d5db' }">
+                                            <span class="uppercase"><i class="fas fa-hard-hat mr-1"></i>{{ $t('steps.inkind_label') }}</span>
+                                            <span class="font-bold">${{ formatMoney(getTierDisplayInkindValue(tier)) }}</span>
+                                        </div>
+                                        <div class="flex justify-between" :style="{ color: getTierDisplayCommunityValue(tier) > 0 ? settings.theme.colorCommunity : '#d1d5db' }">
+                                            <span class="uppercase"><i class="fas fa-users mr-1"></i>{{ $t('steps.community_label') }}</span>
+                                            <span class="font-bold">${{ formatMoney(getTierDisplayCommunityValue(tier)) }}</span>
+                                        </div>
+                                        <div v-if="getTierDonationTotal(tier) > 0" class="flex justify-between text-pink-600">
+                                            <span class="uppercase"><i class="fas fa-hand-holding-heart mr-1"></i>Donations</span>
+                                            <span class="font-bold">${{ formatMoney(getTierDonationTotal(tier)) }}</span>
+                                        </div>
+                                        <div class="flex justify-between text-gray-800 font-bold border-t pt-1 mt-1">
+                                            <span>Total Value</span>
+                                            <span>${{ formatMoney(getTierTotalValue(tier)) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- See Details button -->
+                                    <button v-if="tier.status && tier.status !== 'backlog'" type="button" @click.stop="openStepManagementModal(tier, proj.title)"
+                                            class="mt-2 pt-2 border-t w-full text-center text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
+                                        {{ $i18n.locale === 'es' ? 'Ver detalles' : 'See Details' }} →
+                                    </button>
+                                  </div>
+                                </div>
+                                <!-- Step placeholders when fewer than 3 tiers -->
+                                <div v-for="n in Math.max(0, 3 - (proj.tiers || []).length)" :key="'ph-' + n" class="flex flex-col">
+                                    <div class="rounded-lg p-3 border border-gray-100 bg-gray-50/80 flex flex-col flex-1">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="h-4 bg-gray-100 rounded w-14"></div>
+                                            <div class="h-4 bg-gray-100 rounded w-10"></div>
+                                        </div>
+                                        <div class="h-8 bg-gray-100 rounded mb-2 flex-grow"></div>
+                                        <div class="space-y-1 border-t border-gray-100 pt-2">
+                                            <div class="h-2.5 bg-gray-100 rounded w-full"></div>
+                                            <div class="h-2.5 bg-gray-100 rounded w-full"></div>
+                                            <div class="h-2.5 bg-gray-100 rounded w-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </div>
+
+            <!-- TABLE VIEW -->
+            <div v-if="projectViewMode === 'table'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-[10px] uppercase tracking-wider text-gray-400">
+                                <th class="py-2.5 px-3 text-left font-medium"></th>
+                                <th class="py-2.5 px-3 text-left font-medium">Project</th>
+                                <th class="py-2.5 px-2 text-left font-medium">Category</th>
+                                <th class="py-2.5 px-3 text-left font-medium hidden lg:table-cell">Description</th>
+                                <th class="py-2.5 px-2 text-right font-medium">{{ $t('grants.th_monetary') }}</th>
+                                <th class="py-2.5 px-2 text-right font-medium">{{ $t('grants.th_inkind') }}</th>
+                                <th class="py-2.5 px-2 text-right font-medium">{{ $t('grants.th_community') }}</th>
+                                <th class="py-2.5 px-4 text-center font-medium"></th>
+                                <th class="py-2.5 px-3 text-right font-medium">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="proj in (projectsTab === 'backlog' ? visibleBacklog : visibleCompleted)"
+                                :key="proj.id"
+                                class="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group"
+                                :class="{ 'ring-2 ring-yellow-400 ring-inset': highlightedProjectId === proj.id }"
+                                @click="toggleExpand(proj)">
+                                <!-- Thumbnail -->
+                                <td class="py-2 px-3">
+                                    <div class="w-9 h-9 rounded-lg bg-gray-200 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                        <img v-if="hasRealImages(proj) && getMainImageUrl(proj, true)"
+                                             :src="getMainImageUrl(proj, true)"
+                                             class="w-full h-full object-cover"
+                                             loading="lazy"
+                                             @error="handleThumbnailError($event, proj)">
+                                        <i v-else class="fas fa-image text-gray-300 text-xs"></i>
+                                    </div>
+                                </td>
+                                <!-- Title + Date -->
+                                <td class="py-2 px-3 max-w-[14rem]">
+                                    <div class="font-semibold text-gray-800 text-sm leading-tight truncate">{{ proj.title }}</div>
+                                    <div class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                        <span>{{ new Date(getProjectCreatedDate(proj)).toLocaleDateString() }}</span>
+                                        <span v-if="projectsTab === 'backlog'" class="text-gray-300">· {{ $t('projects.days_old', { days: getDaysOld(getProjectCreatedDate(proj)) }) }}</span>
+                                    </div>
+                                </td>
+                                <!-- Category -->
+                                <td class="py-2 px-2">
+                                    <span v-if="proj.type === 'scholarship'" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase whitespace-nowrap" :style="{ backgroundColor: getCategoryColor('Scholarship') }">{{ $t('projects.scholarship') }}</span>
+                                    <span v-else-if="proj.categoryName" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase whitespace-nowrap" :style="{ backgroundColor: getCategoryColor(proj.categoryName) }">{{ getCatName(proj.categoryName) }}</span>
+                                    <span v-else-if="proj.categories && proj.categories.length" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase whitespace-nowrap" :style="{ backgroundColor: getCategoryColor(proj.categories[0]) }">{{ getCatName(proj.categories[0]) }}</span>
+                                </td>
+                                <!-- Description -->
+                                <td class="py-2 px-3 hidden lg:table-cell max-w-[16rem]">
+                                    <span v-if="proj.description" class="text-xs text-gray-400 font-light truncate block">{{ stripHtml(proj.description) }}</span>
+                                    <span v-else class="text-xs text-gray-300">—</span>
+                                </td>
+                                <!-- Monetary -->
+                                <td class="py-2 px-2 text-right whitespace-nowrap">
+                                    <span v-if="proj.type !== 'scholarship'" class="text-xs font-bold tabular-nums" :style="{ color: getProjectTotalMonetary(proj) > 0 ? settings.theme.colorMonetary : '#d1d5db' }">${{ formatMoney(getProjectTotalMonetary(proj)) }}</span>
+                                    <span v-else class="text-xs text-gray-300">—</span>
+                                </td>
+                                <!-- In-kind -->
+                                <td class="py-2 px-2 text-right whitespace-nowrap">
+                                    <span v-if="proj.type !== 'scholarship'" class="text-xs font-bold tabular-nums" :style="{ color: getProjectTotalInkindValue(proj) > 0 ? settings.theme.colorInkind : '#d1d5db' }">${{ formatMoney(getProjectTotalInkindValue(proj)) }}</span>
+                                    <span v-else class="text-xs font-bold tabular-nums" :style="{ color: settings.theme.colorInkind }">${{ formatMoney(proj.scholarshipValue || 0) }}</span>
+                                </td>
+                                <!-- Community -->
+                                <td class="py-2 px-2 text-right whitespace-nowrap">
+                                    <span v-if="proj.type !== 'scholarship'" class="text-xs font-bold tabular-nums" :style="{ color: getProjectTotalCommunityValue(proj) > 0 ? settings.theme.colorCommunity : '#d1d5db' }">${{ formatMoney(getProjectTotalCommunityValue(proj)) }}</span>
+                                    <span v-else class="text-xs text-gray-300">—</span>
+                                </td>
+                                <!-- Icons -->
+                                <td class="py-2 px-4">
+                                    <div class="flex items-center justify-center gap-1.5 text-gray-400">
+                                        <button @click.stop class="p-1 hover:text-blue-600 transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                                        </button>
+                                        <button @click.stop="proj.coordinates && openMapModal(proj)" class="p-1 transition-colors" :class="proj.coordinates ? 'hover:text-green-600' : 'text-gray-200 cursor-not-allowed'">
+                                            <i class="fas fa-map-marker-alt text-xs"></i>
+                                        </button>
+                                        <button @click.stop="hasRealImages(proj) && openGalleryViewer(proj)" class="p-1 transition-colors" :class="hasRealImages(proj) ? 'hover:text-blue-600' : 'text-gray-200 cursor-not-allowed'">
+                                            <svg class="w-3.5 h-3.5" aria-hidden="true"><use href="#icon-image-regular"/></svg>
+                                        </button>
+                                        <button v-if="proj.type !== 'scholarship'" @click.stop="hasStartedTiers(proj) && openProjectTransactionHistory(proj)" class="p-1 transition-colors" :class="hasStartedTiers(proj) ? 'hover:text-indigo-600' : 'text-gray-200 cursor-not-allowed'">
+                                            <i class="fas fa-history text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <!-- Total -->
+                                <td class="py-2 px-3 text-right whitespace-nowrap">
+                                    <span class="font-mono font-bold text-sm tabular-nums" :style="{ color: settings.theme.colorProjectValue }">${{ formatMoney(proj.type === 'scholarship' ? ((proj.scholarshipValue || 0) + (proj.scholarshipFixedCost || 0)) : getProjectTotalValue(proj)) }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        

@@ -1,0 +1,608 @@
+        <div v-if="currentView === 'stats'" class="animate-fade-in-up">
+            <!-- Tab Bar -->
+            <div class="max-w-7xl mx-auto px-4 pt-6 pb-2">
+                <div class="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+                    <button v-for="tab in [
+                        { id: 'glance', icon: 'fas fa-th-large', label: $t('dashboard.tab_glance') },
+                        { id: 'financial', icon: 'fas fa-dollar-sign', label: $t('dashboard.tab_financial') },
+                        { id: 'projects', icon: 'fas fa-folder-open', label: $t('dashboard.tab_projects') },
+                        { id: 'impact', icon: 'fas fa-hands-helping', label: $t('dashboard.tab_impact') },
+                        { id: 'algorithm', icon: 'fas fa-balance-scale', label: $t('dashboard.tab_algorithm') },
+                        { id: 'activity', icon: 'fas fa-stream', label: $t('dashboard.tab_activity') }
+                    ]" :key="tab.id" @click="dashboardTab = tab.id"
+                        class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all"
+                        :class="dashboardTab === tab.id
+                            ? 'bg-white shadow-sm text-gray-800 border border-gray-200'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'">
+                        <i :class="tab.icon" class="text-xs"></i>
+                        <span>{{ tab.label }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 1: AT A GLANCE                         -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'glance'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-purple-600">{{ projects.length }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.total_projects') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-green-600">{{ countCompleted }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.completed') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-blue-600">{{ countActive }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.active') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-gray-500">{{ countStatsBacklog }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.backlog') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-amber-600 font-mono">${{ formatMoney(totalDonated) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.donated_inkind') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black font-mono" :style="{ color: settings.theme.colorAllocation }">${{ formatMoney(totalNeeded) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('dashboard.soon_allocated') }}</div>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                        <div class="text-sm font-bold text-gray-700 flex items-center">
+                            <i class="fas fa-map mr-2 text-gray-400"></i>{{ $t('dashboard.filter_projects') }}
+                        </div>
+                        <div class="flex gap-1.5 flex-wrap">
+                            <button @click="dashboardMapFilter = 'all'; updateDashboardMapMarkers()"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                :class="dashboardMapFilter === 'all' ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'">
+                                <i class="fas fa-globe mr-1"></i>{{ $t('dashboard.all_projects') }}
+                            </button>
+                            <button @click="dashboardMapFilter = 'completed'; updateDashboardMapMarkers()"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                :class="dashboardMapFilter === 'completed' ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'">
+                                <i class="fas fa-check-circle mr-1"></i>{{ $t('dashboard.filter_completed') }}
+                            </button>
+                            <button @click="dashboardMapFilter = 'in_progress'; updateDashboardMapMarkers()"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                :class="dashboardMapFilter === 'in_progress' ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'">
+                                <i class="fas fa-clock mr-1"></i>{{ $t('dashboard.filter_in_progress') }}
+                            </button>
+                            <button @click="dashboardMapFilter = 'backlog'; updateDashboardMapMarkers()"
+                                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                :class="dashboardMapFilter === 'backlog' ? 'bg-gray-800 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'">
+                                <i class="fas fa-inbox mr-1"></i>{{ $t('dashboard.filter_backlog') }}
+                            </button>
+                        </div>
+                    </div>
+                    <div id="dashboardMap" style="height: 380px; width: 100%;"></div>
+                </div>
+
+                <!-- Financial History -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-chart-line mr-2 text-gray-400"></i>{{ $t('dashboard.financial_history') }}</h3>
+                            <div class="flex gap-4 text-xs mt-1">
+                                <span class="flex items-center"><span class="w-3 h-3 rounded-sm bg-sky-200 mr-1"></span>{{ $t('dashboard.legend_deposits') }}</span>
+                                <span class="flex items-center"><span class="w-3 h-3 rounded-sm bg-blue-300 mr-1"></span>{{ $t('dashboard.legend_cash') }}</span>
+                                <span class="flex items-center"><span class="w-3 h-3 rounded-sm bg-yellow-300 mr-1"></span>{{ $t('dashboard.legend_inkind') }}</span>
+                                <span class="flex items-center"><span class="w-3 h-1 mr-1" :style="{ backgroundColor: settings.theme.headerBg }"></span>{{ $t('dashboard.legend_cumulative') }}</span>
+                            </div>
+                        </div>
+                        <select v-model="chartTimeframe" class="border border-gray-200 rounded-lg text-sm px-3 py-1.5 outline-none cursor-pointer">
+                            <option value="month">{{ $t('dashboard.timeframe_monthly') }}</option>
+                            <option value="year">{{ $t('dashboard.timeframe_yearly') }}</option>
+                        </select>
+                    </div>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-64 w-full">
+                        <div class="absolute inset-0 flex items-end justify-between pt-4 pb-6 px-2">
+                            <div v-for="(data, index) in financialChartData.data" :key="data.date" class="flex flex-col items-center justify-end h-full relative group w-full mx-1">
+                                <div class="flex gap-1 items-end h-full w-full justify-center">
+                                    <div class="w-full max-w-[20px] bg-sky-200 hover:bg-sky-300 transition-all relative group rounded-t-sm" :style="{ height: (data.deposit / financialChartData.maxChart * 80) + '%' }">
+                                        <div class="chart-tooltip">+${{ formatMoney(data.deposit) }}</div>
+                                    </div>
+                                    <div class="w-full max-w-[20px] bg-blue-300 hover:bg-blue-400 transition-all relative group rounded-t-sm" :style="{ height: (data.cashGrant / financialChartData.maxChart * 80) + '%' }">
+                                        <div class="chart-tooltip">${{ formatMoney(data.cashGrant) }}</div>
+                                    </div>
+                                    <div class="w-full max-w-[20px] bg-yellow-300 hover:bg-yellow-400 transition-all relative group rounded-t-sm" :style="{ height: (data.inKindGrant / financialChartData.maxChart * 80) + '%' }">
+                                        <div class="chart-tooltip">${{ formatMoney(data.inKindGrant) }}</div>
+                                    </div>
+                                </div>
+                                <div class="absolute w-3 h-3 rounded-full border-2 border-white shadow z-10 group" :style="{ bottom: (data.cumulative / financialChartData.maxChart * 85) + '%', marginBottom: '-6px', backgroundColor: settings.theme.headerBg }"><div class="chart-tooltip" :style="{ backgroundColor: settings.theme.headerBg }">{{ $t('dashboard.tooltip_cumulative') }} ${{ formatMoney(data.cumulative) }}</div></div>
+                                <div class="text-[9px] text-gray-400 mt-2 absolute -bottom-6 whitespace-nowrap">{{ formatChartDate(data.date) }}</div>
+                            </div>
+                            <svg class="absolute inset-0 h-full w-full pointer-events-none z-0" style="bottom: 24px; height: calc(100% - 24px);"><polyline fill="none" :stroke="settings.theme.headerBg" stroke-width="2" points="" ref="chartLine" class="transition-all duration-500"/></svg>
+                        </div>
+                    </div>
+                    <div class="hidden">{{ updateChartLine() }}</div>
+                    <p class="text-xs text-gray-400 mt-8">{{ $t('dashboard.financial_history_desc') }}</p>
+                </div>
+
+                <!-- Funding Gap -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-chart-bar mr-2 text-gray-400"></i>{{ $t('dashboard.funding_gap_analysis') }}</h3>
+                        <select v-model="fundingGapCategoryFilter" class="border border-gray-200 rounded-lg text-sm px-3 py-1.5 outline-none cursor-pointer">
+                            <option value="All">{{ $t('dashboard.all_categories') }}</option>
+                            <option v-for="cat in categories.filter(c => c !== 'Scholarship')" :key="cat" :value="cat">{{ getCatName(cat) }}</option>
+                        </select>
+                    </div>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative w-full overflow-x-auto" style="height: 308px; scrollbar-width: thin;">
+                        <div v-if="fundingGapData.length === 0" class="absolute inset-0 flex items-center justify-center text-gray-400">
+                            <div class="text-center">
+                                <i class="fas fa-check-circle text-4xl mb-3 text-green-400"></i>
+                                <p class="font-bold text-base">{{ $t('dashboard.all_funded_title') }}</p>
+                                <p class="text-sm mt-1">{{ $t('dashboard.all_funded_desc') }}</p>
+                            </div>
+                        </div>
+                        <div v-else class="flex gap-3 px-2 pb-6" style="min-width: max-content; height: 308px; align-items: flex-start;">
+                            <div v-for="project in fundingGapData" :key="project.id" class="flex flex-col items-center relative" style="min-width: 120px; max-width: 120px; height: 100%;">
+                                <div class="h-6 flex items-center justify-center w-full mb-1">
+                                    <div class="text-sm font-mono font-bold text-green-600">${{ formatMoney(project.total) }}</div>
+                                </div>
+                                <div class="relative w-full flex-1 flex flex-col justify-end mb-24 items-center" style="height: calc(100% - 100px);">
+                                    <div class="absolute left-1/2 transform -translate-x-1/2 top-0 z-20" style="margin-top: -6px;">
+                                        <div class="w-2.5 h-2.5 rounded-full bg-green-600 border-2 border-white shadow-md relative group cursor-pointer">
+                                            <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 text-[10px] font-mono font-semibold text-gray-800 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded shadow border border-gray-200 pointer-events-none">
+                                                {{ $t('dashboard.tooltip_total') }} ${{ formatMoney(project.total) }}<br>
+                                                {{ $t('dashboard.tooltip_funded') }} ${{ formatMoney(project.funded) }}<br>
+                                                {{ $t('dashboard.tooltip_gap') }} ${{ formatMoney(project.gap) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="relative h-full flex flex-col justify-end" style="width: 70%;">
+                                        <div v-if="project.gap > 0" class="w-full bg-yellow-200 transition-all relative group cursor-pointer" :style="{ height: project.gapPercent + '%', minHeight: project.gap > 0 ? '2px' : '0' }">
+                                            <span class="absolute left-1/2 transform -translate-x-1/2 -top-8 text-[10px] font-mono font-semibold text-gray-800 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white px-2 py-1 rounded shadow border border-gray-200 z-30 pointer-events-none">
+                                                {{ $t('dashboard.tooltip_total') }} ${{ formatMoney(project.total) }}<br>{{ $t('dashboard.tooltip_funded') }} ${{ formatMoney(project.funded) }}<br>{{ $t('dashboard.tooltip_gap') }} ${{ formatMoney(project.gap) }}
+                                            </span>
+                                        </div>
+                                        <div v-if="project.funded > 0" class="w-full bg-green-400 transition-all relative group cursor-pointer" :style="{ height: project.fundedPercent + '%', minHeight: project.funded > 0 ? '2px' : '0' }"></div>
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-0 left-0 right-0 text-center pb-1">
+                                    <div class="bg-gray-50 rounded-lg px-2 py-2">
+                                        <div @click="openProjectDetailsModal(project.id)" class="text-xs font-bold text-gray-700 mb-1 w-full line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors" :title="project.title" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ project.title }}</div>
+                                        <div v-if="project.category" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase inline-block" :style="{ backgroundColor: getCategoryColor(project.category) }">{{ getCatName(project.category) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-4">{{ $t('dashboard.funding_gap_desc') }}</p>
+                </div>
+
+                <!-- Community Leverage -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-users-cog mr-2 text-gray-400"></i>{{ $t('dashboard.community_leverage') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="flex flex-col md:flex-row gap-8 items-stretch">
+                        <div class="w-full md:w-1/3 space-y-4 md:pr-8 md:border-r md:border-gray-100">
+                            <div class="p-4 rounded-lg border-l-4" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.06), borderColor: settings.theme.colorInkind }">
+                                <div class="text-2xl font-bold" :style="{ color: settings.theme.colorInkind }">{{ communityStats.ngoHours }} <span class="text-sm font-normal text-gray-400">{{ $t('dashboard.hours') }}</span></div>
+                                <div class="text-[11px] text-gray-500 uppercase font-bold">{{ $t('dashboard.our_effort') }}</div>
+                                <div class="text-[11px] text-gray-400">{{ $t('dashboard.our_effort_desc') }}</div>
+                            </div>
+                            <div class="flex gap-2 items-stretch">
+                                <div class="flex-1 p-3 rounded-lg border-l-4" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.06), borderColor: settings.theme.colorCommunity }">
+                                    <div class="text-2xl font-bold" :style="{ color: settings.theme.colorCommunity }">{{ communityStats.commHours }} <span class="text-sm font-normal text-gray-400">{{ $t('dashboard.hours') }}</span></div>
+                                    <div class="text-[11px] text-gray-500 uppercase font-bold truncate">{{ $t('dashboard.community_effort') }}</div>
+                                    <div class="text-[11px] text-gray-400 leading-tight">{{ $t('dashboard.community_effort_desc') }}</div>
+                                </div>
+                                <div class="flex items-center justify-center px-1">
+                                    <i class="fas fa-arrow-right text-xl text-gray-300"></i>
+                                </div>
+                                <div class="flex-1 p-3 rounded-lg border-l-4" :style="{ backgroundColor: colorAlpha(settings.theme.colorMonetary, 0.06), borderColor: settings.theme.colorMonetary }">
+                                    <div class="font-bold" :style="{ color: settings.theme.colorMonetary }" :class="communityStats.commValue > 9999 ? 'text-lg' : 'text-2xl'">${{ formatMoney(communityStats.commValue) }}</div>
+                                    <div class="text-[11px] text-gray-500 uppercase font-bold truncate">{{ $t('dashboard.generated_value') }}</div>
+                                    <div class="text-[11px] text-gray-400 leading-tight">{{ $t('dashboard.generated_value_desc') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w-full md:w-2/3 space-y-6 text-left md:px-8">
+                            <div>
+                                <h4 class="font-bold text-gray-700 mb-1">{{ $t('dashboard.leverage_performance') }}</h4>
+                                <p class="text-xs text-gray-400 mb-6 leading-relaxed">{{ $t('dashboard.leverage_performance_desc') }}</p>
+                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                                    <span>{{ $t('dashboard.community_share_label') }}</span>
+                                    <span :class="communityStats.percentComm >= 33 ? 'text-green-600' : 'text-red-500'">{{ $t('dashboard.current_community_pct', { percent: communityStats.percentComm.toFixed(0) }) }}</span>
+                                </div>
+                                <div class="relative w-full h-5 bg-gray-100 rounded-full mt-2">
+                                    <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-1000 flex items-center justify-center"
+                                         :class="communityStats.percentComm >= 33 ? 'bg-green-500' : 'bg-red-400'"
+                                         :style="{ width: Math.min(communityStats.percentComm, 100) + '%' }">
+                                        <span v-if="communityStats.percentComm >= 10" class="text-[10px] text-white font-bold z-20">{{ communityStats.percentComm.toFixed(0) }}%</span>
+                                    </div>
+                                    <div class="absolute top-0 bottom-0 w-0.5 bg-gray-500 z-10" style="left: 33%"></div>
+                                    <div class="absolute -top-5 left-[33%] transform -translate-x-1/2 text-[9px] font-bold text-gray-400">{{ $t('dashboard.target_33_label') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 2: FINANCIAL                           -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'financial'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Money Flow Summary -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-blue-600 font-mono">${{ formatMoney(getTotalDeposits()) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.total_deposits') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-green-600 font-mono">${{ formatMoney(getTotalAllocations()) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.allocated') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-purple-600 font-mono">${{ formatMoney(getTotalReimbursements()) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.reimbursed') }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-orange-600 font-mono">${{ formatMoney(getTotalAdditional()) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.additional') }}</div>
+                    </div>
+                </div>
+
+                <!-- Monthly Cash Flow -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-chart-bar mr-2 text-gray-400"></i>{{ $t('stats.monthly_cash_flow') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-80"><canvas ref="monthlyFlowChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4">{{ $t('stats.monthly_cash_flow_desc') }}</p>
+                </div>
+
+                <!-- Two column: Wallet Share + Transaction Mix -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-wallet mr-2 text-gray-400"></i>{{ $t('stats.wallet_balance_share') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="walletShareDonutChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.wallet_balance_share_desc') }} {{ $t('stats.total_label') }} ${{ formatMoney(totalLiquidity) }}.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-exchange-alt mr-2 text-gray-400"></i>{{ $t('stats.transaction_mix') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="transactionTypesDonutChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.transaction_mix_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- Money Out vs Back -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-undo mr-2 text-gray-400"></i>{{ $t('stats.money_out_vs_back') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-56 max-w-md mx-auto"><canvas ref="reimbursementRateBarChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4 text-center">{{ $t('stats.money_out_vs_back_desc') }}</p>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 3: PROJECTS & PIPELINE                 -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'projects'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Lifecycle Funnel -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-filter mr-2 text-gray-400"></i>{{ $t('stats.lifecycle_funnel') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="flex flex-col md:flex-row items-center justify-center gap-4 py-6">
+                        <div v-for="(stage, idx) in lifecycleFunnel" :key="idx" class="flex items-center gap-4">
+                            <div class="flex flex-col items-center">
+                                <div class="text-xs font-bold text-gray-500 mb-2">{{ stage.label }}</div>
+                                <div class="w-24 h-24 rounded-xl flex items-center justify-center border-2" :style="{ backgroundColor: stage.color + '15', borderColor: stage.color }">
+                                    <div class="text-center">
+                                        <div class="text-2xl font-black" :style="{ color: stage.color }">{{ stage.count }}</div>
+                                        <div class="text-[10px] text-gray-500">{{ stage.percent }}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <i v-if="idx < lifecycleFunnel.length - 1" class="fas fa-chevron-right text-gray-300 hidden md:block"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two column: Step Status + Steps per Project -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-puzzle-piece mr-2 text-gray-400"></i>{{ $t('stats.pipeline_step_status') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="tierStatusPieChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.pipeline_step_status_desc') }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-layer-group mr-2 text-gray-400"></i>{{ $t('stats.projects_by_step_count') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="tiersDistChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.projects_by_step_count_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- Category Completion Stack -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-tasks mr-2 text-gray-400"></i>{{ $t('stats.category_completion_stack') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="categoryCompletionChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4">{{ $t('stats.category_completion_stack_desc') }}</p>
+                </div>
+
+                <!-- Project Completion Timeline -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-timeline mr-2 text-gray-400"></i>{{ $t('stats.project_completion_timeline') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="timelineChart"></canvas></div>
+                </div>
+
+                <!-- Cumulative Completions -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-chart-line mr-2 text-gray-400"></i>{{ $t('stats.cumulative_completions') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="cumulativeCompletionsLineChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4">{{ $t('stats.cumulative_completions_desc') }}</p>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 4: IMPACT & COMMUNITY                  -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'impact'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Impact Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-green-600">{{ getTotalNgoHours() }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.ngo_volunteer_hours') }}</div>
+                        <div class="text-xs text-gray-400 mt-1">{{ $t('stats.value_label') }} ${{ formatMoney(getTotalNgoHours() * 3.5) }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-blue-600">{{ getTotalCommunityHours() }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.community_hours_label') }}</div>
+                        <div class="text-xs text-gray-400 mt-1">{{ $t('stats.value_label') }} ${{ formatMoney(getTotalCommunityValue()) }}</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-2xl font-black text-purple-600 font-mono">${{ formatMoney(getTotalImpactValue()) }}</div>
+                        <div class="text-gray-400 text-[11px] font-bold uppercase mt-1">{{ $t('stats.total_impact_value') }}</div>
+                        <div class="text-xs text-gray-400 mt-1">{{ $t('stats.cash_labor_community') }}</div>
+                    </div>
+                </div>
+
+                <!-- Bubble Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-braille mr-2 text-gray-400"></i>{{ $t('dashboard.completed_by_category_value') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative w-full" style="height: 400px;">
+                        <div v-if="bubbleChartData.length === 0" class="absolute inset-0 flex items-center justify-center text-gray-400">
+                            <div class="text-center"><i class="fas fa-info-circle text-3xl mb-3"></i><p class="font-bold">{{ $t('dashboard.no_completed_steps') }}</p></div>
+                        </div>
+                        <div v-else class="relative w-full h-full">
+                            <div class="ml-4 mr-4 h-full">
+                                <svg class="h-full w-full" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMid meet">
+                                    <g v-for="(tick, idx) in bubbleChartYAxisTicks" :key="'y-tick-' + idx">
+                                        <line :x1="50" :y1="tick.y" :x2="950" :y2="tick.y" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="2,2"/>
+                                        <text :x="45" :y="tick.y + 4" text-anchor="end" class="text-[10px] fill-gray-500 font-mono" style="font-family: monospace;">{{ tick.label }}</text>
+                                    </g>
+                                    <g v-for="(category, catIdx) in bubbleChartCategories" :key="'cat-' + catIdx">
+                                        <line v-if="catIdx > 0" :x1="category.xStart" :y1="30" :x2="category.xStart" :y2="380" stroke="#e5e7eb" stroke-width="1"/>
+                                    </g>
+                                    <g v-for="(bubble, idx) in bubbleChartData" :key="'bubble-' + idx">
+                                        <circle :cx="bubble.x" :cy="bubble.y" r="8" :fill="bubble.color" :stroke="bubble.color" stroke-width="2" opacity="0.7" class="cursor-pointer hover:opacity-100 transition-opacity" @click="openProjectDetailsModal(bubble.projectId)" @mouseenter="showBubbleTooltip($event, bubble)" @mouseleave="hideBubbleTooltip()"/>
+                                    </g>
+                                </svg>
+                            </div>
+                            <div class="absolute bottom-0 left-4 right-4 flex justify-center items-start pt-12 pb-2">
+                                <div class="relative w-full">
+                                    <div v-for="(category, catIdx) in bubbleChartCategories" :key="'cat-badge-' + catIdx" class="absolute flex flex-col items-center" :style="{ left: (category.xCenter / 1000 * 100) + '%', transform: 'translateX(-50%)' }">
+                                        <span class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(category.name) }">{{ getCatName(category.name) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-6">{{ $t('dashboard.bubble_chart_desc') }}</p>
+                </div>
+
+                <!-- Two column: Grants by Category + Cost Structure -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-coins mr-2 text-gray-400"></i>{{ $t('dashboard.grants_by_category') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="flex flex-col items-center gap-6">
+                            <div class="relative w-48 h-48"><svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90"><circle v-for="(slice, idx) in pieChartData" :key="idx" cx="50" cy="50" r="15.9155" fill="transparent" stroke-width="32" :stroke="slice.color" :stroke-dasharray="`${slice.percent} ${100 - slice.percent}`" :stroke-dashoffset="slice.offset" class="pie-slice transition-opacity duration-300"><title>{{ getCatName(slice.name) }}: {{ slice.percent.toFixed(1) }}%</title></circle></svg></div>
+                            <div class="flex flex-col gap-2 w-full"><div v-for="cat in chartCategoryStats" :key="cat.name" class="flex items-center justify-between gap-4 text-xs"><div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" :style="{backgroundColor: getCategoryColor(cat.name)}"></span><span class="font-bold text-gray-600">{{ getCatName(cat.name) }}</span></div><div class="text-right"><span class="font-mono font-bold text-gray-800">${{ formatMoney(cat.value) }}</span> <span class="text-gray-400 font-mono">{{ cat.percentOfTotal.toFixed(1) }}%</span></div></div></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('dashboard.grants_by_category_desc') }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-search-dollar mr-2 text-gray-400"></i>{{ $t('dashboard.value_cost_structure') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="flex flex-col items-center gap-6">
+                            <div class="relative w-48 h-48">
+                                <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
+                                    <circle v-for="(slice, idx) in expensePieChart" :key="idx" cx="50" cy="50" r="15.9155" fill="transparent" stroke-width="32" :stroke="slice.color" :stroke-dasharray="`${slice.percent} ${100 - slice.percent}`" :stroke-dashoffset="slice.offset" class="pie-slice transition-opacity duration-300"><title>{{ getCostTypeName(slice.name) }}: {{ slice.percent.toFixed(1) }}%</title></circle>
+                                    <circle cx="50" cy="50" r="14" fill="white"/>
+                                </svg>
+                            </div>
+                            <div class="flex flex-col gap-2 w-full">
+                                <div v-for="(stat, idx) in expenseStats" :key="stat.name" class="flex items-center justify-between gap-4 text-xs border-b border-gray-50 pb-1 last:border-0">
+                                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" :style="{backgroundColor: getExpenseColor(stat.name, idx)}"></span><span class="font-bold text-gray-600">{{ getCostTypeName(stat.name) }}</span></div>
+                                    <div class="text-right"><span class="font-mono font-bold text-gray-800">${{ formatMoney(stat.value) }}</span> <span class="text-gray-400 font-mono">{{ stat.percent.toFixed(1) }}%</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('dashboard.value_cost_structure_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- Two column: Where Money Went + Top Projects -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-map-marked-alt mr-2 text-gray-400"></i>{{ $t('stats.where_money_went') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="moneyByCategoryDonutChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.where_money_went_desc') }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-trophy mr-2 text-gray-400"></i>{{ $t('stats.top_projects_by_value') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="topProjectsByValueBarChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.top_projects_by_value_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- Two column: Value Distribution + NGO vs Community -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-coins mr-2 text-gray-400"></i>{{ $t('stats.value_distribution') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="valueDistChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.value_distribution_desc') }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-handshake mr-2 text-gray-400"></i>{{ $t('stats.ngo_vs_community_hours') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-64"><canvas ref="ngoVsCommunityHoursChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.ngo_vs_community_hours_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- Spending by Cost Type -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-pie-chart mr-2 text-gray-400"></i>{{ $t('stats.spending_by_cost_type') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <div class="relative h-64 md:w-1/2"><canvas ref="costTypeDonutChart"></canvas></div>
+                        <div class="md:w-1/2 text-sm text-gray-500 flex items-center">{{ $t('stats.spending_by_cost_type_desc') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 5: ALGORITHM & ACCURACY                -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'algorithm'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Allocation vs Verification -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-balance-scale mr-2 text-gray-400"></i>{{ $t('stats.allocation_vs_verification') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="allocationChart"></canvas></div>
+                    <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                        <div class="p-3 bg-blue-50 rounded-lg">
+                            <div class="text-xl font-black text-blue-600">{{ allocationStats.overBudget }}</div>
+                            <div class="text-[11px] text-gray-500 mt-1">{{ $t('stats.over_budget') }}</div>
+                        </div>
+                        <div class="p-3 bg-green-50 rounded-lg">
+                            <div class="text-xl font-black text-green-600">{{ allocationStats.onBudget }}</div>
+                            <div class="text-[11px] text-gray-500 mt-1">{{ $t('stats.on_budget') }}</div>
+                        </div>
+                        <div class="p-3 rounded-lg" :style="{ backgroundColor: colorAlpha(settings.theme.colorAllocation, 0.06) }">
+                            <div class="text-xl font-black" :style="{ color: settings.theme.colorAllocation }">{{ allocationStats.underBudget }}</div>
+                            <div class="text-[11px] text-gray-500 mt-1">{{ $t('stats.under_budget') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two scatter plots -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-bullseye mr-2 text-gray-400"></i>{{ $t('stats.allocation_vs_verified_step') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-72"><canvas ref="allocationVsVerifiedScatterChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.allocation_vs_verified_step_desc') }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-bullseye mr-2 text-gray-400"></i>{{ $t('stats.allocation_vs_verified_zones') }}</h3>
+                        <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                        <div class="relative h-72"><canvas ref="allocationVsVerifiedZonesChart"></canvas></div>
+                        <p class="text-xs text-gray-400 mt-4">{{ $t('stats.allocation_vs_verified_zones_desc') }}</p>
+                    </div>
+                </div>
+
+                <!-- On-Budget by Category -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-percentage mr-2 text-gray-400"></i>{{ $t('stats.on_budget_by_category') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="onBudgetByCategoryChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4">{{ $t('stats.on_budget_by_category_desc') }}</p>
+                </div>
+
+                <!-- Grant Efficiency Radar -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-spider mr-2 text-gray-400"></i>{{ $t('stats.grant_efficiency_radar') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="flex flex-col md:flex-row gap-8">
+                        <div class="flex-1 relative h-80"><canvas ref="radarChart"></canvas></div>
+                        <div class="md:w-56 space-y-3">
+                            <div v-for="metric in efficiencyMetrics" :key="metric.name" class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full flex-shrink-0" :style="{ backgroundColor: metric.color }"></div>
+                                <div>
+                                    <div class="text-xs font-bold text-gray-700">{{ metric.name }}</div>
+                                    <div class="text-[11px] text-gray-400">{{ metric.description }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Funding Velocity -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-rocket mr-2 text-gray-400"></i>{{ $t('stats.funding_velocity') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="relative h-72"><canvas ref="velocityChart"></canvas></div>
+                    <p class="text-xs text-gray-400 mt-4 text-center">{{ $t('stats.funding_velocity_desc') }}</p>
+                </div>
+
+                <!-- Category Performance Matrix -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-th mr-2 text-gray-400"></i>{{ $t('stats.category_performance_matrix') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div v-for="cat in categoryPerformance" :key="cat.name" class="p-5 rounded-xl border-2 transition-all hover:shadow-md" :style="{ borderColor: getCategoryColor(cat.name), backgroundColor: getCategoryColor(cat.name) + '08' }">
+                            <div class="text-xs font-bold uppercase mb-3" :style="{ color: getCategoryColor(cat.name) }">{{ getCatName(cat.name) }}</div>
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-xs"><span class="text-gray-500">{{ $t('stats.projects_label') }}</span><span class="font-bold">{{ cat.projects }}</span></div>
+                                <div class="flex justify-between text-xs"><span class="text-gray-500">{{ $t('stats.funded_label') }}</span><span class="font-bold font-mono">${{ formatMoney(cat.funded) }}</span></div>
+                                <div class="flex justify-between text-xs"><span class="text-gray-500">{{ $t('stats.avg_cost_label') }}</span><span class="font-bold font-mono">${{ formatMoney(cat.avgCost) }}</span></div>
+                                <div class="mt-2 pt-2 border-t border-gray-200">
+                                    <div class="text-[11px] text-gray-400 mb-1">{{ $t('stats.completion_rate_label') }}</div>
+                                    <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="h-1.5 rounded-full" :style="{ width: cat.completionRate + '%', backgroundColor: getCategoryColor(cat.name) }"></div></div>
+                                    <div class="text-[11px] font-bold mt-1" :style="{ color: getCategoryColor(cat.name) }">{{ cat.completionRate.toFixed(1) }}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- TAB 6: ACTIVITY                            -->
+            <!-- ═══════════════════════════════════════════ -->
+            <div v-if="dashboardTab === 'activity'" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+                <!-- Transaction Activity Timeline -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-lg text-gray-800 flex items-center"><i class="fas fa-calendar-alt mr-2 text-gray-400"></i>{{ $t('stats.transaction_timeline') }}</h3>
+                    <div class="border-b border-gray-100 -mx-6 mt-3 mb-4"></div>
+                    <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
+                        <div v-for="(month, idx) in getMonthlyActivity()" :key="idx" class="p-3 bg-gray-50 rounded-lg border border-gray-100 text-center">
+                            <div class="text-[11px] text-gray-400 mb-1">{{ month.label }}</div>
+                            <div class="text-xl font-black" :style="{ color: getActivityColor(month.count) }">{{ month.count }}</div>
+                            <div class="text-[10px] text-gray-400">{{ $t('stats.transactions') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+

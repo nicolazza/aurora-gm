@@ -1,0 +1,208 @@
+    <div v-if="showBudgetModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+            <div class="p-4 bg-gray-800 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg"><i class="fas fa-calculator mr-2"></i> {{ $t('budget_modal.step_budget') }}</h3>
+                <button @click="closeBudgetModal" class="hover:text-gray-300"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4 bg-gray-50">
+                
+                <div v-if="activeBudgetTier && activeBudgetTier.isInKindContext" class="p-4 rounded-lg border mb-4 animate-fade-in" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.1), borderColor: colorAlpha(settings.theme.colorInkind, 0.35) }">
+                    <h4 class="font-bold mb-2 flex items-center" :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hand-holding-heart mr-2"></i> {{ $t('budget_modal.in_kind_labor_setup') }}</h4>
+                    
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase" :style="{ color: settings.theme.colorInkind }">{{ $t('budget_modal.volunteers') }}</label>
+                            <input type="number" v-model.number="tempInKind.people" class="w-full p-2 border rounded text-center font-bold" :style="{ borderColor: colorAlpha(settings.theme.colorInkind, 0.35) }" min="1" @input="updateInKindServiceCost">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase" :style="{ color: settings.theme.colorInkind }">{{ $t('budget_modal.hours_each') }}</label>
+                            <input type="number" v-model.number="tempInKind.hours" class="w-full p-2 border rounded text-center font-bold" :style="{ borderColor: colorAlpha(settings.theme.colorInkind, 0.35) }" min="1" @input="updateInKindServiceCost">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase" :style="{ color: settings.theme.colorInkind }">{{ $t('budget_modal.hourly_value') }}</label>
+                            <input type="number" v-model.number="tempInKind.rate" class="w-full p-2 border rounded text-center font-bold" :style="{ borderColor: colorAlpha(settings.theme.colorInkind, 0.35) }" min="0" @input="updateInKindServiceCost">
+                        </div>
+                    </div>
+
+                    <div class="text-right text-xs font-bold border-t pt-2" :style="{ color: settings.theme.colorInkind, borderColor: colorAlpha(settings.theme.colorInkind, 0.25) }">
+                        {{ $t('budget_modal.donated_labor_value') }} ${{ formatMoney((tempInKind.people || 0) * (tempInKind.hours || 0) * (tempInKind.rate || 0)) }}
+                    </div>
+                </div>
+                
+                <!-- Wallet Selection for Fixed Costs (outside green box for in-kind projects) -->
+                <div v-if="activeBudgetTier && activeBudgetTier.isInKindContext" class="mb-4">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('budget_modal.source_wallet_fixed_costs') }}</label>
+                    <select v-model="tempInKind.walletId" class="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                        <option :value="null" disabled>{{ $t('budget_modal.select_wallet_placeholder') }}</option>
+                        <option v-for="w in wallets" :key="w.id" :value="String(w.id)">{{ w.name }} (${{ formatMoney(w.balance) }})</option>
+                    </select>
+                    <p class="text-[10px] text-gray-500 mt-1 italic">{{ $t('budget_modal.wallet_usage_hint') }}</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{ $t('budget_modal.physical_assets_cash') }}</label>
+                        <input type="number" v-model.number="tempBudget.assets" class="w-full p-2 border rounded" :placeholder="$t('budget_modal.placeholder_zero')">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{ activeBudgetTier && activeBudgetTier.isInKindContext ? $t('budget_modal.paid_services_cash') : $t('budget_modal.skilled_labor_services') }}</label>
+                        <input type="number" v-model.number="tempBudget.services" class="w-full p-2 border rounded" :placeholder="$t('budget_modal.placeholder_zero')" :disabled="activeBudgetTier && activeBudgetTier.isInKindContext && false">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{ $t('budget_modal.logistics') }}</label>
+                            <input type="number" v-model.number="tempBudget.logistics" class="w-full p-2 border rounded" :placeholder="$t('budget_modal.placeholder_zero')">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">{{ $t('budget_modal.direct_support') }}</label>
+                            <input type="number" v-model.number="tempBudget.support" class="w-full p-2 border rounded" :placeholder="$t('budget_modal.placeholder_zero')">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-gray-600">{{ $t('budget_modal.total_project_value') }}</span>
+                        <span class="text-2xl font-bold text-gray-800">${{ formatMoney(tempBudgetTotal) }}</span>
+                    </div>
+                    <div v-if="activeBudgetTier && activeBudgetTier.isInKindContext" class="flex justify-between text-xs">
+                        <span class="text-red-600 font-bold">{{ $t('budget_modal.cash_required') }} ${{ formatMoney((tempBudget.assets||0) + (tempBudget.services||0) + (tempBudget.logistics||0) + (tempBudget.support||0)) }}</span>
+                        <span class="font-bold" :style="{ color: settings.theme.colorInkind }">{{ $t('budget_modal.in_kind_labor') }} ${{ formatMoney((tempInKind.people||0) * (tempInKind.hours||0) * (tempInKind.rate||0)) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-white">
+                <button @click="closeBudgetModal" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-100 text-sm">{{ $t('common.cancel') }}</button>
+                <button @click="saveBudgetDetails" class="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 text-sm">{{ $t('budget_modal.save_breakdown') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unselect Step Confirmation Modal -->
+    <div v-if="showUnselectTierModal && unselectTierData" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeUnselectTierModal">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-5" :class="unselectTierData.selectionType === 'empathy' ? 'bg-purple-600' : 'bg-green-600'">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fas fa-star"></i>
+                    {{ $t(unselectTierData.selectionType === 'empathy' ? 'budget_modal.remove_empathy_selection' : 'budget_modal.remove_compassion_selection') }}
+                </h2>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-5">
+                <div class="mb-4">
+                    <div class="font-bold text-gray-800 text-lg">{{ unselectTierData.projName }}</div>
+                    <div class="text-sm text-gray-500 mt-1">
+                        <span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">{{ $t('steps.step_level', { level: unselectTierData.level }) }}</span>
+                        <span v-if="unselectTierData.intervention" class="ml-2">{{ unselectTierData.intervention }}</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">{{ $t('budget_modal.monetary_cost') }}</span>
+                        <span class="font-bold text-gray-800">${{ formatMoney(unselectTierData.monetaryTotal) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-1">
+                        <span class="text-gray-500">{{ $t('score.score') }}:</span>
+                        <span class="font-bold text-blue-600">{{ unselectTierData.score?.toFixed(1) }}</span>
+                    </div>
+                </div>
+                
+                <p class="text-sm text-gray-600">
+                    {{ $t('budget_modal.unselect_warning') }}
+                </p>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="bg-gray-50 p-4 border-t flex justify-end gap-3">
+                <button @click="closeUnselectTierModal" class="px-5 py-2 rounded-lg font-bold text-gray-600 hover:bg-gray-200 transition">
+                    {{ $t('common.cancel') }}
+                </button>
+                <button @click="confirmUnselectTier" class="px-5 py-2 rounded-lg font-bold text-white transition"
+                        :class="unselectTierData.selectionType === 'empathy' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-green-600 hover:bg-green-700'">
+                    <i class="fas fa-times mr-2"></i> {{ $t('budget_modal.remove_selection') }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Selections Modal (Compassion/Empathy) -->
+    <div v-if="showConfirmSelectionsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeConfirmSelectionsModal">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-green-600 to-purple-600 text-white p-6">
+                <h2 class="text-xl font-bold"><i class="fas fa-clipboard-check mr-2"></i> {{ $t('budget_modal.confirm_selections') }}</h2>
+                <p class="text-sm text-white/80 mt-1">{{ $t('budget_modal.review_selections') }}</p>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto max-h-[50vh]">
+                <!-- Compassion Section -->
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <h3 class="font-bold text-gray-800">{{ $t('budget_modal.compassionate_giving') }}</h3>
+                        <span class="ml-auto text-lg font-bold text-green-600">${{ formatMoney(compassionTotal) }}</span>
+                    </div>
+                    <div class="bg-green-50 rounded-lg divide-y divide-green-100">
+                        <div v-for="tier in fundedProposals" :key="tier.tierId" class="p-3 flex justify-between items-center">
+                            <div>
+                                <div class="font-medium text-gray-800">{{ tier.projName }}</div>
+                                <div class="text-xs text-gray-500">{{ $t('steps.step_level', { level: tier.level }) }} <span v-if="tier.intervention">— {{ tier.intervention }}</span></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(tier.monetaryCosts) }}</div>
+                                <div class="text-xs text-gray-400">{{ $t('score.score') }}: {{ tier.score?.toFixed(1) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empathy Section -->
+                <div v-if="empathySelections.length > 0">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <h3 class="font-bold text-gray-800">{{ $t('budget_modal.empathic_giving') }}</h3>
+                        <span class="ml-auto text-lg font-bold text-purple-600">${{ formatMoney(selectedEmpathyTotal) }}</span>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg divide-y divide-purple-100">
+                        <div v-for="tier in empathySelections" :key="tier.tierId" class="p-3 flex justify-between items-center">
+                            <div>
+                                <div class="font-medium text-gray-800">{{ tier.projName }}</div>
+                                <div class="text-xs text-gray-500">{{ $t('steps.step_level', { level: tier.level }) }} <span v-if="tier.intervention">— {{ tier.intervention }}</span></div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-purple-700">${{ formatMoney(tier.monetaryCosts) }}</div>
+                                <div class="text-xs text-gray-400">{{ $t('score.score') }}: {{ tier.score?.toFixed(1) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="text-center text-gray-400 py-4 bg-gray-50 rounded-lg">
+                    <i class="fas fa-forward mr-2"></i> {{ $t('budget_modal.skipping_empathy') }}
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="bg-gray-50 p-6 border-t flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <strong>{{ $t('budget_modal.total') }}</strong> 
+                    <span class="text-lg font-bold text-gray-800">${{ formatMoney(compassionTotal + selectedEmpathyTotal) }}</span>
+                    <span class="text-gray-400 ml-2">{{ $t('budget_modal.tiers_count', { count: fundedProposals.length + empathySelections.length }) }}</span>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="closeConfirmSelectionsModal" class="px-6 py-2 rounded-lg font-bold text-gray-600 hover:bg-gray-200 transition">
+                        {{ $t('common.cancel') }}
+                    </button>
+                    <button @click="confirmAllSelections" class="px-6 py-2 rounded-lg font-bold bg-gradient-to-r from-green-600 to-purple-600 text-white hover:from-green-700 hover:to-purple-700 transition shadow-lg">
+                        <i class="fas fa-check mr-2"></i> {{ $t('budget_modal.confirm_mark_selected') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+

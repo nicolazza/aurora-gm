@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath fill='%23ffffff' d='M163.9 136.9c-29.4-29.8-29.4-78.2 0-108s77-29.8 106.4 0l17.7 18l17.7-18c29.4-29.8 77-29.8 106.4 0s29.4 78.2 0 108L310.5 240.1c-6.2 6.3-14.3 9.4-22.5 9.4s-16.3-3.1-22.5-9.4zm404.3 199.4c13.1 17.8 9.3 42.8-8.5 55.9l-126.6 93.3c-23.4 17.2-51.6 26.5-80.7 26.5H32c-17.7 0-32-14.3-32-32v-64c0-17.7 14.3-32 32-32h36.8l44.9-36c22.7-18.2 50.9-28 80-28H352c17.7 0 32 14.3 32 32s-14.3 32-32 32h-80c-8.8 0-16 7.2-16 16s7.2 16 16 16h120.6l119.7-88.2c17.8-13.1 42.8-9.3 55.9 8.5zM193.6 384l0 0-.9 0c.3 0 .6 0 .9 0z'/%3E%3C/svg%3E" />
+    <title>Grants Manager</title>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Code for 2FA -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- JSZip for exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Quill.js Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script>
+        // Simple TOTP implementation (RFC 6238)
+        window.TOTP = {
+            // Generate random secret (base32)
+            generateSecret: function() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                let secret = '';
+                for (let i = 0; i < 32; i++) {
+                    secret += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return secret;
+            },
+            
+            // Base32 decode
+            base32Decode: function(str) {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                let bits = 0;
+                let value = 0;
+                let index = 0;
+                const output = new Uint8Array(((str.length * 5) / 8) | 0);
+                
+                for (let i = 0; i < str.length; i++) {
+                    value = (value << 5) | chars.indexOf(str[i].toUpperCase());
+                    bits += 5;
+                    if (bits >= 8) {
+                        output[index++] = (value >>> (bits - 8)) & 255;
+                        bits -= 8;
+                    }
+                }
+                return output;
+            },
+            
+            // Generate TOTP code
+            generate: function(secret, timeStep = 30) {
+                const key = this.base32Decode(secret);
+                const time = Math.floor(Date.now() / 1000 / timeStep);
+                
+                // Convert time to 8-byte buffer (big-endian)
+                const timeBuffer = new ArrayBuffer(8);
+                const timeView = new DataView(timeBuffer);
+                timeView.setUint32(4, time, false); // Big-endian
+                
+                // HMAC-SHA1
+                const crypto = window.crypto || window.msCrypto;
+                if (!crypto || !crypto.subtle) {
+                    // Fallback: use simple implementation
+                    return this.generateFallback(key, time);
+                }
+                
+                return crypto.subtle.importKey(
+                    'raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+                ).then(key => {
+                    return crypto.subtle.sign('HMAC', key, timeBuffer);
+                }).then(signature => {
+                    const bytes = new Uint8Array(signature);
+                    const offset = bytes[19] & 0x0f;
+                    const code = ((bytes[offset] & 0x7f) << 24 |
+                                  (bytes[offset + 1] & 0xff) << 16 |
+                                  (bytes[offset + 2] & 0xff) << 8 |
+                                  (bytes[offset + 3] & 0xff)) % 1000000;
+                    return code.toString().padStart(6, '0');
+                });
+            },
+            
+            // Fallback implementation (simpler, less secure)
+            generateFallback: function(key, time) {
+                // Simple hash-based approach
+                let hash = 0;
+                const timeStr = time.toString();
+                for (let i = 0; i < key.length; i++) {
+                    hash = ((hash << 5) - hash) + key[i] + timeStr.charCodeAt(i % timeStr.length);
+                    hash = hash & hash;
+                }
+                const code = Math.abs(hash) % 1000000;
+                return code.toString().padStart(6, '0');
+            },
+            
+            // Verify TOTP code
+            verify: async function(token, secret, window = 1) {
+                const timeStep = 30;
+                const currentTime = Math.floor(Date.now() / 1000 / timeStep);
+                
+                for (let i = -window; i <= window; i++) {
+                    const time = currentTime + i;
+                    const expected = await this.generateForTime(secret, time);
+                    if (expected === token) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            
+            generateForTime: async function(secret, timeCounter) {
+                const key = this.base32Decode(secret);
+                const timeBuffer = new ArrayBuffer(8);
+                const timeView = new DataView(timeBuffer);
+                timeView.setUint32(4, timeCounter, false);
+                
+                const crypto = window.crypto || window.msCrypto;
+                if (!crypto || !crypto.subtle) {
+                    return this.generateFallback(key, timeCounter);
+                }
+                
+                const importedKey = await crypto.subtle.importKey(
+                    'raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+                );
+                const signature = await crypto.subtle.sign('HMAC', importedKey, timeBuffer);
+                const bytes = new Uint8Array(signature);
+                const offset = bytes[19] & 0x0f;
+                const code = ((bytes[offset] & 0x7f) << 24 |
+                              (bytes[offset + 1] & 0xff) << 16 |
+                              (bytes[offset + 2] & 0xff) << 8 |
+                              (bytes[offset + 3] & 0xff)) % 1000000;
+                return code.toString().padStart(6, '0');
+            },
+            
+            // Generate otpauth URL
+            keyuri: function(accountName, serviceName, secret) {
+                return `otpauth://totp/${encodeURIComponent(serviceName)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(serviceName)}`;
+            }
+        };
+    </script>
+    <!-- Google Maps API -->
+    <!-- Enable "Maps JavaScript API" in Google Cloud Console -->
+    <!-- Replace YOUR_GOOGLE_MAPS_KEY with your Google Maps API key -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY"></script>
+
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+
+<div id="app" class="min-h-screen flex flex-col text-gray-800" v-cloak @click="closeScorePopover">
+
+    <!-- Login Page (not authenticated and no guest access) -->
+    <template v-if="!isAuthenticated && !isGuestMode">
+      <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-purple-50 p-6">
+        <div class="w-full max-w-sm">
+          <!-- Logo / Brand -->
+          <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-600 text-white shadow-lg mb-4">
+              <i class="fas fa-hand-holding-heart text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800">{{ $t('login.app_title') }}</h1>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('login.app_subtitle') }}</p>
+          </div>
+
+          <!-- Login Form (username / password) -->
+          <form v-if="!requires2FA" @submit.prevent="handleLogin" class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{{ $t('login.username') }}</label>
+              <input v-model="loginUsername" type="text" required autocomplete="username"
+                     class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition text-sm"
+                     :placeholder="$t('login.username_placeholder')">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{{ $t('login.password') }}</label>
+              <input v-model="loginPassword" type="password" required autocomplete="current-password"
+                     class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition text-sm"
+                     :placeholder="$t('login.password_placeholder')">
+            </div>
+            <p v-if="loginError" class="text-red-600 text-sm font-medium"><i class="fas fa-exclamation-circle mr-1"></i>{{ loginError }}</p>
+            <button type="submit" :disabled="isLoading"
+                    class="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-wait text-white rounded-xl font-bold text-sm shadow-lg shadow-purple-200 transition active:scale-[0.98]">
+              <i v-if="isLoading" class="fas fa-spinner fa-spin mr-2"></i>{{ $t('login.login_button') }}
+            </button>
+          </form>
+
+          <!-- 2FA Code Entry (shown after username/password succeeds) -->
+          <form v-else @submit.prevent="handle2FALogin" class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p class="text-sm text-blue-800">
+                <i class="fas fa-shield-halved mr-2"></i>{{ $t('login.enter_2fa_code') }}
+              </p>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{{ $t('login.code_label') }}</label>
+              <input v-model="twoFactorCode" type="text" required
+                     class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition text-center text-2xl tracking-widest"
+                     :placeholder="$t('login.code_placeholder')" maxlength="6" pattern="[0-9]{6}"
+                     @input="twoFactorCode = twoFactorCode.replace(/[^0-9]/g, '')">
+              <p class="text-xs text-slate-400 mt-1.5">{{ $t('login.or_backup_code') }}</p>
+            </div>
+            <p v-if="loginError" class="text-red-600 text-sm font-medium"><i class="fas fa-exclamation-circle mr-1"></i>{{ loginError }}</p>
+            <button type="submit"
+                    class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-purple-200 transition active:scale-[0.98]">
+              {{ $t('login.verify_button') }}
+            </button>
+            <button type="button" @click="cancelLogin"
+                    class="w-full py-2.5 text-slate-500 hover:text-slate-700 text-sm font-medium transition">
+              <i class="fas fa-arrow-left mr-1"></i>{{ $t('login.back') }}
+            </button>
+          </form>
+
+          <!-- Language switcher (accessible from login page) -->
+          <div class="flex justify-center mt-6">
+            <button type="button" @click="switchLocale"
+                    class="text-xs text-slate-400 hover:text-purple-600 transition font-medium">
+              {{ $i18n.locale === 'en' ? 'Cambiar a Español' : 'Switch to English' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2FA Setup modal must remain accessible during login flow -->
+      <!-- @include partials/modals/auth.html -->
+    </template>
+
+    <!-- Main App (authenticated or guest mode) -->
+    <template v-else>
+
+    <!-- Outline image icon (regular style) - used for View Photos -->
+    <svg xmlns="http://www.w3.org/2000/svg" class="hidden"><symbol id="icon-image-regular" viewBox="0 0 512 512" fill="currentColor"><path d="M64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zM64 96H448V416H64V96zm72 32c-22.1 0-40 17.9-40 40s17.9 40 40 40 40-17.9 40-40-17.9-40-40-40zM58.3 368L147.9 240l57.6 76.8 76.8-102.4L453.7 368H58.3z"/></symbol></svg>
+
+    <!-- @include partials/views/nav.html -->
+
+    <!-- @include partials/views/home.html -->
+
+    <div v-show="currentView !== 'home'" class="container mx-auto px-4 py-8 flex-grow">
+
+        <div v-if="viewDataLoading" class="flex items-center justify-center py-20">
+            <div class="text-center">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3" :style="{ color: settings.theme.headerBg }"></i>
+                <p class="text-sm text-gray-400 font-bold">Loading data...</p>
+            </div>
+        </div>
+
+        <!-- @include partials/views/dashboard.html -->
+
+        <!-- @include partials/views/analytics.html -->
+
+        <!-- @include partials/views/projects.html -->
+
+        <!-- @include partials/views/grants.html -->
+
+        <!-- @include partials/views/wallets.html -->
+
+        <!-- @include partials/views/donors.html -->
+
+        <!-- @include partials/views/admin.html -->
+
+        <!-- @include partials/views/playground.html -->
+
+
+    </div>
+
+
+    <!-- @include partials/modals/map.html -->
+
+    <!-- @include partials/footer.html -->
+
+    <!-- @include partials/modals/budget.html -->
+
+    <!-- @include partials/modals/project-editor.html -->
+
+    <!-- @include partials/modals/viewers.html -->
+
+    <!-- @include partials/modals/explanations.html -->
+
+    <!-- @include partials/modals/timeline.html -->
+
+    <!-- @include partials/modals/tier-history.html -->
+
+    <!-- @include partials/modals/step-management.html -->
+
+    <!-- @include partials/modals/project-info.html -->
+
+    <!-- @include partials/modals/gallery.html -->
+
+    <!-- @include partials/modals/completion.html -->
+
+    <!-- @include partials/modals/fm-import.html -->
+
+    <!-- @include partials/modals/auth.html -->
+
+    <!-- @include partials/modals/system.html -->
+
+    <!-- dock removed: language switcher moved to nav bar -->
+
+    <!-- @include partials/ai-chat.html -->
+
+    </template>
+
+    </div>
+
+    <!-- Vite Entry Point -->
+    <script type="module" src="/src/main.js"></script>
+
+</body>
+</html>

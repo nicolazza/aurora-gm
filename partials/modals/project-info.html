@@ -1,0 +1,297 @@
+<!-- ═══════ Project Info Modal (mirrors PM General Info card) ═══════ -->
+<div v-if="showProjectInfoModal && projInfoProject"
+     class="fixed inset-0 bg-black/70 flex items-start justify-center z-[90] pt-10 pb-10 px-4 overflow-y-auto backdrop-blur-sm"
+     @click.self="closeProjectInfoModal()">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-[66rem] min-h-[80vh] animate-fade-in-up flex flex-col">
+
+        <!-- Header -->
+        <div class="px-6 pt-5 pb-4 border-b border-gray-200 flex items-start justify-between shrink-0">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">{{ projInfoProject.title }}</h2>
+                <p v-if="projInfoProject.categoryName" class="mt-1">
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(projInfoProject.categoryName) }">{{ getCatName(projInfoProject.categoryName) }}</span>
+                </p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <span class="font-mono font-bold text-xl" :style="{ color: settings.theme.colorProjectValue }">${{ formatMoney(projInfoProject.type === 'scholarship' ? ((projInfoProject.scholarshipValue || 0) + (projInfoProject.scholarshipFixedCost || 0)) : getProjectTotalValue(projInfoProject)) }}</span>
+                    <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $i18n.locale === 'es' ? 'Valor total' : 'Total value' }}</div>
+                </div>
+                <button @click="closeProjectInfoModal()" class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar + Content -->
+        <div class="flex flex-1 min-h-0">
+            <!-- Sidebar nav -->
+            <nav class="w-44 shrink-0 border-r border-gray-200 bg-gray-50/60 py-2 overflow-y-auto">
+                <button v-for="tab in [
+                    { key: 'overview', label: $t('proj_info.tab_overview'), count: null, icon: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' },
+                    { key: 'gallery', label: $t('proj_info.tab_gallery'), count: (projInfoProjectPhotos.length + projInfoStepPhotos.reduce((s, g) => s + g.photos.length, 0)) || null, icon: 'm2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z' },
+                    { key: 'attachments', label: $t('proj_info.tab_attachments'), count: projInfoAttachmentCount || null, icon: 'M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13' },
+                ]" :key="tab.key"
+                   @click="projInfoActiveTab = tab.key"
+                   class="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors"
+                   :class="projInfoActiveTab === tab.key
+                       ? 'text-blue-600 bg-blue-50 font-semibold border-r-2 border-blue-600'
+                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'"
+                >
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" :d="tab.icon" /></svg>
+                    <span class="truncate">{{ tab.label }}</span>
+                    <span v-if="tab.count !== null" class="text-xs opacity-60 ml-auto shrink-0">({{ tab.count }})</span>
+                </button>
+            </nav>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0 overflow-y-auto p-6">
+
+            <!-- Loading -->
+            <div v-if="projInfoLoading" class="flex items-center justify-center py-12 text-gray-400 text-sm">
+                <i class="fas fa-spinner fa-spin text-2xl mr-3"></i> {{ $t('common.loading') }}
+            </div>
+
+            <!-- Error -->
+            <div v-else-if="projInfoError" class="text-center py-12 text-red-500">
+                <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                <p>{{ projInfoError }}</p>
+            </div>
+
+            <!-- ═══════ OVERVIEW TAB ═══════ -->
+            <div v-else-if="projInfoActiveTab === 'overview'" class="space-y-6">
+                <!-- Cost summary + Steps count -->
+                <div class="flex gap-4 items-stretch">
+                    <div class="flex-1 rounded-lg overflow-hidden bg-gray-100 px-4 py-3">
+                        <div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 gap-y-1 text-center items-center">
+                            <div></div>
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_monetary') }}</div>
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_inkind') }}</div>
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_community') }}</div>
+
+                            <div class="text-[10px] text-gray-400 font-semibold text-right pr-2">{{ $t('step_mgmt.overview_planned') }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoPlannedMonetary > 0 ? settings.theme.colorMonetary : '#d1d5db' }">{{ '$' + formatMoney(projInfoPlannedMonetary) }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoPlannedInkind > 0 ? settings.theme.colorInkind : '#d1d5db' }">{{ '$' + formatMoney(projInfoPlannedInkind) }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoPlannedCommunity > 0 ? settings.theme.colorCommunity : '#d1d5db' }">{{ '$' + formatMoney(projInfoPlannedCommunity) }}</div>
+
+                            <div class="text-[10px] text-gray-400 font-semibold text-right pr-2">{{ $t('step_mgmt.overview_actual') }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoActualMonetary > 0 ? settings.theme.colorMonetary : '#d1d5db' }">{{ '$' + formatMoney(projInfoActualMonetary) }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoActualInkind > 0 ? settings.theme.colorInkind : '#d1d5db' }">{{ '$' + formatMoney(projInfoActualInkind) }}</div>
+                            <div class="font-bold text-sm text-center" :style="{ color: projInfoActualCommunity > 0 ? settings.theme.colorCommunity : '#d1d5db' }">{{ '$' + formatMoney(projInfoActualCommunity) }}</div>
+                        </div>
+                        <div class="flex justify-center gap-4 text-xs font-bold text-gray-600 mt-2 pt-2 border-t border-gray-200">
+                            <span>{{ $t('step_mgmt.overview_planned') }}: {{ '$' + formatMoney(projInfoPlannedMonetary + projInfoPlannedInkind + projInfoPlannedCommunity) }}</span>
+                            <span>{{ $t('step_mgmt.overview_actual') }}: {{ '$' + formatMoney(projInfoActualMonetary + projInfoActualInkind + projInfoActualCommunity) }}</span>
+                        </div>
+                    </div>
+                    <div class="rounded-lg bg-gray-100 px-6 flex flex-col items-center justify-center shrink-0">
+                        <div class="text-3xl font-extrabold text-gray-700">{{ projInfoProject.tiers ? projInfoProject.tiers.length : 0 }}</div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mt-1">{{ $i18n.locale === 'es' ? 'Pasos' : 'Steps' }}</div>
+                    </div>
+                </div>
+
+                <!-- Collapsible location map -->
+                <div v-if="projInfoCoordinates && projInfoCoordinates.lat && projInfoCoordinates.lng" class="rounded-lg border border-gray-200 overflow-hidden">
+                    <button type="button"
+                            @click="projInfoMapCollapsed = !projInfoMapCollapsed"
+                            class="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-bold hover:bg-gray-200 transition-colors">
+                        <span class="flex items-center gap-2">
+                            <i class="fas fa-map-marker-alt text-green-500"></i>
+                            {{ $t('proj_info.location') }}
+                            <span class="text-xs font-normal text-gray-400">{{ Number(projInfoCoordinates.lat).toFixed(5) }}, {{ Number(projInfoCoordinates.lng).toFixed(5) }}</span>
+                        </span>
+                        <svg class="w-4 h-4 transition-transform duration-200" :class="projInfoMapCollapsed ? '' : 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                    </button>
+                    <div class="overflow-hidden transition-all duration-500 ease-in-out" :style="{ maxHeight: projInfoMapCollapsed ? '0px' : '300px' }">
+                        <iframe v-if="!projInfoMapCollapsed"
+                                :src="'https://www.openstreetmap.org/export/embed.html?bbox=' + (projInfoCoordinates.lng - 0.015) + ',' + (projInfoCoordinates.lat - 0.01) + ',' + (projInfoCoordinates.lng + 0.015) + ',' + (projInfoCoordinates.lat + 0.01) + '&layer=mapnik&marker=' + projInfoCoordinates.lat + ',' + projInfoCoordinates.lng"
+                                style="width: 100%; height: 250px; border: 0;">
+                        </iframe>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
+                        <h4 class="font-semibold text-gray-800">{{ $t('proj_info.description') }}</h4>
+                    </div>
+                    <div class="min-h-[40px] bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700 prose prose-sm max-w-none"
+                         v-html="sanitize(projInfoDescription || '<span class=\'text-gray-400\'>' + $t('proj_info.no_description') + '</span>')"></div>
+                </div>
+
+                <!-- No data placeholder -->
+                <div v-if="!projInfoDescription && projInfoPlannedMonetary === 0 && projInfoPlannedInkind === 0 && projInfoPlannedCommunity === 0 && !projInfoCoordinates"
+                     class="text-center py-12 text-gray-400">
+                    <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                    <p class="text-sm">{{ $t('proj_info.overview_empty') }}</p>
+                </div>
+            </div>
+
+            <!-- ═══════ GALLERY TAB (mirrors PM General Info card gallery) ═══════ -->
+            <div v-else-if="projInfoActiveTab === 'gallery'">
+                <div v-if="projInfoProjectPhotos.length === 0 && projInfoStepPhotos.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <svg class="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                    </svg>
+                    <p class="text-sm font-medium">{{ $t('step_mgmt.gallery_empty') }}</p>
+                </div>
+                <div v-else class="space-y-4">
+
+                    <!-- Project Photos section (non-collapsible, matches PM) -->
+                    <div v-if="projInfoProjectPhotos.length > 0" class="rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-bold">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>
+                            {{ $t('proj_info.project_photos') }}
+                            <span class="text-xs font-normal text-gray-400">({{ projInfoProjectPhotos.length }})</span>
+                        </div>
+                        <div class="p-3">
+                            <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                <div v-for="(photo, idx) in projInfoProjectPhotos" :key="photo.id" class="relative group cursor-pointer" @click="openProjInfoPhotoViewer(projInfoProjectPhotos, idx)">
+                                    <img :src="photo.thumbUrl" :alt="$t('step_mgmt.photo_alt', { n: idx + 1 })" class="w-full h-24 object-cover rounded-lg border-2 border-gray-200 group-hover:border-gray-400 transition-colors" @error="$event.target.src = photo.url" />
+                                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" /></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Per-step collapsible sections (matches PM StepGallerySection) -->
+                    <div v-for="group in projInfoStepPhotos" :key="group.tierId" class="rounded-lg border border-gray-200 overflow-hidden">
+                        <button type="button" @click="group._collapsed = !group._collapsed"
+                                class="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" /></svg>
+                                {{ group.title }}
+                                <span class="text-xs font-normal text-gray-400">({{ group.photos.length }})</span>
+                            </span>
+                            <svg class="w-4 h-4 transition-transform duration-200" :class="group._collapsed ? '' : 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </button>
+                        <div class="overflow-hidden transition-all duration-300 ease-in-out" :style="{ maxHeight: group._collapsed ? '0px' : '1200px' }">
+                            <div class="p-3">
+                                <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    <div v-for="(photo, idx) in group.photos" :key="photo.id" class="relative group cursor-pointer" @click="openProjInfoPhotoViewer(group.photos, idx)">
+                                        <img :src="photo.thumbUrl" :alt="$t('step_mgmt.photo_alt', { n: idx + 1 })" class="w-full h-24 object-cover rounded-lg border-2 border-gray-200 group-hover:border-gray-400 transition-colors" @error="$event.target.src = photo.url" />
+                                        <span v-if="photo.context === 'intervention'" class="absolute top-1 left-1 bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">{{ $t('step_mgmt.intervention_badge') }}</span>
+                                        <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ═══════ ATTACHMENTS TAB ═══════ -->
+            <div v-else-if="projInfoActiveTab === 'attachments'">
+                <div v-if="projInfoProjectAttachments.length === 0 && projInfoStepAttachments.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <svg class="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                    </svg>
+                    <p class="text-sm font-medium">{{ $t('step_mgmt.attachments_empty') }}</p>
+                </div>
+                <div v-else class="space-y-4">
+                    <!-- Project-level attachments -->
+                    <div v-if="projInfoProjectAttachments.length > 0" class="rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm font-bold">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                            {{ $t('proj_info.project_attachments') }}
+                            <span class="text-xs font-normal text-gray-400">({{ projInfoProjectAttachments.length }})</span>
+                        </div>
+                        <div class="p-3 space-y-1.5">
+                            <a v-for="att in projInfoProjectAttachments" :key="att.id"
+                               :href="att.url" target="_blank" rel="noopener noreferrer"
+                               class="flex items-center gap-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-100 transition-colors no-underline">
+                                <img v-if="att.isImage" :src="att.url + '?thumb=80x80'" :alt="att.name"
+                                     class="w-8 h-8 rounded object-cover border border-gray-200 shrink-0"
+                                     @error="$event.target.src = att.url" />
+                                <svg v-else class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm text-gray-700 truncate block">{{ att.name }}</span>
+                                    <span v-if="att.created" class="text-[10px] text-gray-400">{{ new Date(att.created).toLocaleDateString() }}</span>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    <!-- Per-step attachments (collapsible) -->
+                    <div v-for="group in projInfoStepAttachments" :key="group.tierId" class="rounded-lg border border-gray-200 overflow-hidden">
+                        <button type="button" @click="group._collapsed = !group._collapsed"
+                                class="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100 transition-colors">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                                {{ group.title }}
+                                <span class="text-xs font-normal text-gray-400">({{ group.attachments.length }})</span>
+                            </span>
+                            <svg class="w-4 h-4 transition-transform duration-200" :class="group._collapsed ? '' : 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </button>
+                        <div class="overflow-hidden transition-all duration-300 ease-in-out" :style="{ maxHeight: group._collapsed ? '0px' : '1200px' }">
+                            <div class="p-3 space-y-1.5">
+                                <a v-for="att in group.attachments" :key="att.id"
+                                   :href="att.url" target="_blank" rel="noopener noreferrer"
+                                   class="flex items-center gap-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-100 transition-colors no-underline">
+                                    <img v-if="att.isImage" :src="att.url + '?thumb=80x80'" :alt="att.name"
+                                         class="w-8 h-8 rounded object-cover border border-gray-200 shrink-0"
+                                         @error="$event.target.src = att.url" />
+                                    <svg v-else class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                    <div class="flex-1 min-w-0">
+                                        <span class="text-sm text-gray-700 truncate block">{{ att.name }}</span>
+                                        <span v-if="att.created" class="text-[10px] text-gray-400">{{ new Date(att.created).toLocaleDateString() }}</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ PHOTO LIGHTBOX (Project Info Modal) ═══════ -->
+<teleport to="body">
+    <div v-if="projInfoPhotoViewerIndex !== null && projInfoPhotoViewerList[projInfoPhotoViewerIndex]"
+         class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center backdrop-blur-sm"
+         @click.self="closeProjInfoPhotoViewer()">
+        <button class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl z-10" @click="closeProjInfoPhotoViewer()">
+            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <div class="absolute top-4 left-4 text-white/70 text-sm font-medium">{{ projInfoPhotoViewerIndex + 1 }} / {{ projInfoPhotoViewerList.length }}</div>
+        <button v-if="projInfoPhotoViewerList.length > 1" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-3 transition z-10"
+                @click.stop="projInfoPhotoViewerIndex = (projInfoPhotoViewerIndex - 1 + projInfoPhotoViewerList.length) % projInfoPhotoViewerList.length">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+        </button>
+        <img :src="projInfoPhotoViewerList[projInfoPhotoViewerIndex].url"
+             :alt="$t('step_mgmt.photo_alt', { n: projInfoPhotoViewerIndex + 1 })"
+             class="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+             @click.stop />
+        <button v-if="projInfoPhotoViewerList.length > 1" class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-3 transition z-10"
+                @click.stop="projInfoPhotoViewerIndex = (projInfoPhotoViewerIndex + 1) % projInfoPhotoViewerList.length">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
+        <div v-if="projInfoPhotoViewerList.length > 1" class="absolute bottom-4 left-0 right-0 px-4">
+            <div class="flex gap-2 justify-center overflow-x-auto pb-2">
+                <img v-for="(photo, idx) in projInfoPhotoViewerList" :key="photo.id"
+                     :src="photo.thumbUrl" :alt="$t('step_mgmt.photo_alt', { n: idx + 1 })"
+                     class="w-14 h-14 object-cover rounded cursor-pointer border-2 shrink-0 transition"
+                     :class="idx === projInfoPhotoViewerIndex ? 'border-blue-500' : 'border-transparent hover:border-gray-400'"
+                     @click.stop="projInfoPhotoViewerIndex = idx"
+                     @error="$event.target.src = photo.url" />
+            </div>
+        </div>
+    </div>
+</teleport>

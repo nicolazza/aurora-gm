@@ -1,0 +1,720 @@
+        <div v-else-if="currentView === 'new_operation'" class="max-w-7xl mx-auto animate-fade-in-up">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">{{ $t('grants.title') }}</h2>
+            <!-- NEW: Simplified grant tabs -->
+            <div class="flex justify-between items-end mb-6 border-b border-gray-200">
+                <div class="flex space-x-2">
+                    <button v-if="hasPerm('gm.runAlgorithm')" @click="grantViewMode = 'new'" class="px-4 py-2 font-bold text-sm rounded-t-lg transition" :class="grantViewMode === 'new' ? 'bg-white border-t-2 border-green-500 text-green-700' : 'text-gray-500 hover:bg-gray-100'"><i class="fas fa-magic mr-2"></i> {{ $t('grants.algorithmic_grant') }}</button>
+                    <button v-if="hasPerm('gm.startStep')" @click="grantViewMode = 'manual'" class="px-4 py-2 font-bold text-sm rounded-t-lg transition" :class="grantViewMode === 'manual' ? 'bg-white border-t-2 border-blue-500 text-blue-700' : 'text-gray-500 hover:bg-gray-100'"><i class="fas fa-list-ol mr-2"></i> {{ $t('grants.project_queue') }}</button>
+                    <button v-if="hasPerm('gm.createScholarship')" @click="grantViewMode = 'scholarships'; initScholarshipEditors()" class="px-4 py-2 font-bold text-sm rounded-t-lg transition" :class="grantViewMode === 'scholarships' ? 'bg-white border-t-2 border-yellow-500 text-yellow-700' : 'text-gray-500 hover:bg-gray-100'"><i class="fas fa-graduation-cap mr-2"></i> {{ $t('grants.scholarships') }}</button>
+                </div>
+                <div class="flex space-x-2">
+                    <button v-if="hasPerm('gm.completeStep') || hasPerm('gm.confirmSelections')" @click="grantViewMode = 'queue'" class="px-4 py-2 font-bold text-sm rounded-t-lg transition relative" :class="grantViewMode === 'queue' ? 'bg-white border-t-2 border-orange-500 text-orange-700' : 'text-gray-500 hover:bg-gray-100'"><i class="fas fa-clipboard-check mr-2"></i> {{ $t('grants.project_confirmation') }} <span v-if="getProjectConfirmationTiers().length > 0" class="ml-1 bg-red-500 text-white text-[9px] px-1.5 rounded-full">{{ getProjectConfirmationTiers().length }}</span></button>
+                    <button @click="grantViewMode = 'logbook'" class="px-4 py-2 font-bold text-sm rounded-t-lg transition" :class="grantViewMode === 'logbook' ? 'bg-white border-t-2 border-gray-600 text-gray-800' : 'text-gray-500 hover:bg-gray-100'"><i class="fas fa-book mr-2"></i> {{ $t('grants.logbook') }}</button>
+                </div>
+            </div>
+
+            <div v-if="grantViewMode === 'new'">
+                <!-- Lock banner when selections are pending -->
+                <div v-if="hasAlgorithmSelectedTiers" class="bg-yellow-50 border border-yellow-300 rounded-xl p-6 mb-8">
+                    <div class="flex items-center gap-4">
+                        <div class="text-4xl text-yellow-500"><i class="fas fa-lock"></i></div>
+                        <div>
+                            <h3 class="font-bold text-yellow-800">{{ $t('grants.pending_selections') }}</h3>
+                            <p class="text-sm text-yellow-700" v-html="$t('grants.pending_selections_message', { projectQueue: '<strong>' + $t('grants.project_queue') + '</strong>' })"></p>
+                            <button @click="grantViewMode = 'manual'" class="mt-3 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded text-sm font-bold transition"><i class="fas fa-list-ol mr-2"></i> {{ $t('grants.go_to_project_queue') }}</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Bar - Always visible during both phases -->
+                <div v-if="!hasAlgorithmSelectedTiers" class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-8" :class="grantPhase === 'empathy' ? 'border-purple-600' : 'border-green-600'">
+                    <div class="grid grid-cols-2 gap-8">
+                        <!-- LEFT HALF: Cash Grant Amount Input -->
+                        <div>
+                            <label class="block text-gray-500 text-xs font-bold uppercase mb-2">{{ $t('grants.budget') }}</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-3 text-gray-400 font-bold">$</span>
+                                <input v-model.number="sessionBudget" type="number" class="w-full pl-8 p-3 border rounded-lg text-2xl font-bold text-gray-800 bg-gray-50 focus:bg-white transition outline-none border-gray-300" :max="totalLiquidity" :disabled="grantPhase === 'empathy'">
+                            </div>
+                            <div v-if="sessionBudget > totalLiquidity" class="text-xs text-red-500 font-bold mt-1"><i class="fas fa-exclamation-circle"></i> {{ $t('grants.exceeds_total_liquidity') }}</div>
+                        </div>
+                        <!-- RIGHT HALF: Three numbers well separated and centered -->
+                        <div class="flex items-center justify-around">
+                            <!-- Compassion Total -->
+                            <div class="text-center">
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2">{{ $t('grants.compassion') }}</label>
+                                <div class="text-2xl font-bold text-green-600">${{ formatMoney(grantPhase === 'empathy' ? compassionTotal : totalAllocated) }}</div>
+                                <div class="text-xs text-gray-400">{{ $t('grants.steps_count', { count: fundedProposals.length }) }}</div>
+                            </div>
+                            <!-- Empathy Total -->
+                            <div class="text-center">
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2">{{ $t('grants.empathy') }}</label>
+                                <div class="text-2xl font-bold text-purple-600">${{ formatMoney(selectedEmpathyTotal) }}</div>
+                                <div class="text-xs text-gray-400">{{ $t('grants.steps_count', { count: empathySelections.length }) }}</div>
+                            </div>
+                            <!-- Vertical Separator -->
+                            <div class="h-12 w-px bg-gray-200"></div>
+                            <!-- Available NGO Balance -->
+                            <div class="text-center">
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2">{{ $t('grants.available') }}</label>
+                                <div class="text-2xl font-bold" :class="totalLiquidity - (grantPhase === 'empathy' ? compassionTotal + selectedEmpathyTotal : sessionBudget) < 0 ? 'text-red-600' : 'text-green-600'">
+                                    ${{ formatMoney(Math.max(0, totalLiquidity - (grantPhase === 'empathy' ? compassionTotal + selectedEmpathyTotal : sessionBudget))) }}
+                                </div>
+                                <div class="text-xs text-gray-400">{{ $t('grants.of_total', { amount: '$' + formatMoney(totalLiquidity) }) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="!hasAlgorithmSelectedTiers && grantPhase !== 'empathy'">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden min-h-[400px] mb-8">
+                        <div class="bg-gray-800 text-white p-4 flex justify-between items-center sticky top-0 z-10">
+                            <div class="flex items-center gap-4"><h3 class="font-bold"><i class="fas fa-robot mr-2"></i> {{ $t('grants.algorithmic_proposal') }}</h3></div>
+                            <!-- Compassion/Empathy Ratio Slider -->
+                            <div class="flex flex-col items-center">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-green-300 font-bold">{{ $t('grants.compassion') }}</span>
+                                    <input type="range" v-model.number="compassionRatio" min="50" max="99" class="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-400">
+                                    <span class="text-xs text-purple-300 font-bold">{{ $t('grants.empathy') }}</span>
+                                </div>
+                                <div class="text-xs mt-1 font-mono"><span class="text-green-300">{{ compassionRatio }}%</span> / <span class="text-purple-300">{{ empathyRatio }}%</span></div>
+                            </div>
+                            <div class="text-sm text-right"><div>{{ $t('grants.steps_cost') }} <span class="font-mono font-bold text-lg">${{ formatMoney(totalAllocated) }}</span></div><div class="text-xs opacity-70">{{ $t('grants.budget_left') }} <span :class="remainingSession < 0 ? 'text-red-400 font-bold' : 'text-green-400'">${{ formatMoney(remainingSession) }}</span></div></div>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-100 text-gray-500 text-xs uppercase border-b">
+                                <tr>
+                                    <th class="p-4 text-center w-20">{{ $t('score.score') }}</th>
+                                    <th class="p-4 w-12"></th>
+                                    <th class="p-4">{{ $t('grants.th_project') }}</th>
+                                    <th class="p-4 text-right">{{ $t('grants.th_inkind') }}</th>
+                                    <th class="p-4 text-right">{{ $t('grants.th_community') }}</th>
+                                    <th class="p-4 text-right">{{ $t('grants.th_monetary') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-sm">
+                                <tr v-for="(prop, idx) in fundedProposals" :key="idx" class="transition duration-150 hover:bg-blue-50" :class="{'bg-red-50': prop.breakdown?.emergency}">
+                                    <!-- 1. Score (label) -->
+                                    <td class="p-4 text-center">
+                                        <span class="bg-blue-100 text-blue-700 text-sm font-bold px-3 py-1 rounded">
+                                            {{ prop.score?.toFixed(1) || '—' }}
+                                        </span>
+                                    </td>
+                                    <!-- 2. Project Details Icon (action TBD) -->
+                                    <td class="p-4 text-center">
+                                        <button class="text-gray-400 hover:text-blue-600 transition text-lg" :title="$t('projects.view_details')">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </td>
+                                    <!-- 3. Project: Title (bigger), Step, Category, Intervention -->
+                                    <td class="p-4">
+                                        <div class="font-bold text-gray-800 text-base">{{ prop.projName }}</div>
+                                        <div class="flex flex-wrap items-center gap-2 mt-1">
+                                            <span class="text-sm font-bold text-white px-2 py-0.5 rounded" :style="{ backgroundColor: settings.theme.headerBg }">{{ $t('steps.step_level', { level: prop.level }) }}</span>
+                                            <span v-if="prop.projectCategory" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(prop.projectCategory) }">{{ prop.projectCategory }}</span>
+                                        </div>
+                                        <div class="text-xs text-gray-600 mt-2" v-if="prop.intervention">
+                                            {{ prop.intervention }}
+                                        </div>
+                                    </td>
+                                    <!-- 4. In-Kind Value with calculations -->
+                                    <td class="p-4 text-right">
+                                        <div v-if="prop.inkindTotal > 0">
+                                            <div class="font-mono font-bold" :style="{ color: settings.theme.colorInkind }">${{ formatMoney(prop.inkindTotal) }}</div>
+                                            <div class="text-[10px] text-gray-400">
+                                                {{ $t('grants.cost_formula', { people: prop.inkindPeople, hours: prop.inkindHours, rate: prop.inkindRate }) }}
+                                            </div>
+                                        </div>
+                                        <span v-else class="text-gray-300">—</span>
+                                    </td>
+                                    <!-- 5. Community Value with calculations -->
+                                    <td class="p-4 text-right">
+                                        <div v-if="prop.communityTotal > 0">
+                                            <div class="font-mono font-bold" :style="{ color: settings.theme.colorCommunity }">${{ formatMoney(prop.communityTotal) }}</div>
+                                            <div class="text-[10px] text-gray-400">
+                                                {{ $t('grants.cost_formula', { people: prop.communityPeople, hours: prop.communityHours, rate: prop.communityRate }) }}
+                                            </div>
+                                        </div>
+                                        <span v-else class="text-gray-300">—</span>
+                                    </td>
+                                    <!-- 6. Monetary Cost -->
+                                    <td class="p-4 text-right">
+                                        <div class="font-mono font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(prop.monetaryCosts) }}</div>
+                                    </td>
+                                </tr>
+                                <tr v-if="fundedProposals.length === 0"><td colspan="6" class="p-8 text-center text-gray-400 italic">{{ $t('grants.no_steps_selected') }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Nudge Banner -->
+                    <div v-if="totalAllocated > 0 && nextNudgeTier && canNudge" class="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6 animate-fade-in-up">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-4">
+                                <div class="text-3xl text-blue-500"><i class="fas fa-lightbulb"></i></div>
+                                <div>
+                                    <h3 class="font-bold text-blue-800">{{ $t('grants.next_high_impact_step') }}</h3>
+                                    <p class="text-sm text-blue-700 mt-1" v-html="$t('grants.nudge_details', { projName: '<strong>' + nextNudgeTier.projName + '</strong>', level: nextNudgeTier.level, score: nextNudgeTier.score?.toFixed(1), amount: '<strong>$' + formatMoney(nextNudgeTier.monetaryCosts) + '</strong>' })"></p>
+                                    <p class="text-xs text-blue-600 mt-1" v-html="$t('grants.add_to_budget', { amount: '<strong>$' + formatMoney(nudgeAmount) + '</strong>' })"></p>
+                                </div>
+                            </div>
+                            <button @click="acceptNudge" class="px-6 py-3 rounded-lg font-bold shadow transition transform active:scale-95 flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                                <i class="fas fa-plus"></i> {{ $t('grants.add_amount', { amount: '$' + formatMoney(nudgeAmount) }) }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Compassion Phase Actions -->
+                    <div v-if="totalAllocated > 0" class="bg-green-600 text-white rounded-xl shadow-lg overflow-hidden mb-12 p-6 animate-fade-in-up">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-lg"><i class="fas fa-heart mr-2"></i> {{ $t('grants.compassionate_giving_selected', { count: fundedProposals.length }) }}</h3>
+                                <p class="text-sm text-green-100 mt-1" v-html="$t('grants.compassion_proceed_message', { amount: '<strong>$' + formatMoney(totalAllocated) + '</strong>', ratio: empathyRatio, empathyAmount: '<strong>$' + formatMoney(totalAllocated * (empathyRatio / compassionRatio)) + '</strong>' })"></p>
+                            </div>
+                            <button @click="finishCompassion" class="px-8 py-3 rounded-lg font-bold shadow-lg transition transform active:scale-95 flex items-center gap-2 bg-white text-green-700 hover:bg-green-50">
+                                <i class="fas fa-arrow-right"></i> {{ $t('grants.done_with_compassion') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EMPATHY PHASE -->
+                <div v-else-if="!hasAlgorithmSelectedTiers && grantPhase === 'empathy'" class="animate-fade-in-up">
+                    <!-- Empathy Phase Header -->
+                    <div class="bg-purple-600 text-white rounded-xl shadow-lg p-6 mb-8">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-4">
+                                <button @click="grantPhase = 'compassion'" class="text-purple-200 hover:text-white transition" :title="$t('empathy.back_to_compassion')">
+                                    <i class="fas fa-arrow-left text-xl"></i>
+                                </button>
+                                <div>
+                                    <h3 class="font-bold text-xl"><i class="fas fa-palette mr-2"></i> {{ $t('empathy.empathic_giving') }}</h3>
+                                    <p class="text-sm text-purple-100 mt-1" v-html="$t('empathy.select_low_score', { budget: '<strong>$' + formatMoney(empathyBudget) + '</strong>', ratio: empathyRatio })"></p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-bold">${{ formatMoney(selectedEmpathyTotal) }} / ${{ formatMoney(empathyBudget) }}</div>
+                                <div class="text-xs text-purple-200">{{ $t('empathy.remaining', { amount: '$' + formatMoney(empathyBudgetRemaining) }) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary of Compassion Selections -->
+                    <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                            <div>
+                                <span class="font-bold text-green-800">{{ $t('empathy.compassionate_giving') }}</span>
+                                <span class="text-green-700">{{ $t('empathy.steps_for_amount', { count: fundedProposals.length, amount: '$' + formatMoney(compassionTotal) }) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empathy Step Selection List (Inverted - lowest score first) -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+                        <div class="bg-purple-100 p-4 border-b border-purple-200">
+                            <h4 class="font-bold text-purple-800"><i class="fas fa-list-ul mr-2"></i> {{ $t('empathy.available_steps') }}</h4>
+                            <p class="text-xs text-purple-600 mt-1">{{ $t('empathy.available_steps_desc') }}</p>
+                        </div>
+                        
+                        <div v-if="empathyTiers.length === 0" class="p-12 text-center text-gray-400">
+                            <div class="text-4xl mb-3"><i class="fas fa-check-double"></i></div>
+                            <p>{{ $t('empathy.all_tiers_selected') }}</p>
+                        </div>
+
+                        <div v-else class="divide-y divide-gray-100">
+                            <div v-for="tier in empathyTiers" :key="tier.tierId" 
+                                 class="p-4 flex items-center justify-between transition cursor-pointer"
+                                 :class="isEmpathySelected(tier.tierId) ? 'bg-purple-50' : 'hover:bg-gray-50'"
+                                 @click="toggleEmpathyTier(tier)">
+                                <div class="flex items-center gap-4">
+                                    <!-- Checkbox -->
+                                    <div class="w-6 h-6 rounded border-2 flex items-center justify-center transition"
+                                         :class="isEmpathySelected(tier.tierId) ? 'bg-purple-600 border-purple-600 text-white' : 'border-gray-300'">
+                                        <i v-if="isEmpathySelected(tier.tierId)" class="fas fa-check text-xs"></i>
+                                    </div>
+                                    <!-- Step Info -->
+                                    <div>
+                                        <div class="font-bold text-gray-800">{{ tier.projName }}</div>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="text-xs font-bold text-white px-2 py-0.5 rounded" :style="{ backgroundColor: settings.theme.headerBg }">{{ $t('steps.step_level', { level: tier.level }) }}</span>
+                                            <span class="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded">{{ $t('score.score') }}: {{ tier.score?.toFixed(1) }}</span>
+                                        </div>
+                                        <div v-if="tier.intervention" class="text-xs text-gray-500 mt-1">{{ tier.intervention }}</div>
+                                    </div>
+                                </div>
+                                <!-- Cost -->
+                                <div class="text-right">
+                                    <div class="font-bold text-purple-700">${{ formatMoney(tier.monetaryCosts) }}</div>
+                                    <div v-if="tier.monetaryCosts > empathyBudgetRemaining && !isEmpathySelected(tier.tierId)" class="text-xs text-red-500">{{ $t('empathy.exceeds_budget') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirm All Selections -->
+                    <div class="bg-gradient-to-r from-green-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-12">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-lg"><i class="fas fa-check-double mr-2"></i> {{ empathySelections.length > 0 ? $t('empathy.ready_to_confirm_all') : $t('empathy.ready_to_confirm') }}</h3>
+                                <p class="text-sm text-white/80 mt-1">
+                                    {{ $t('empathy.compassion_steps_summary', { count: fundedProposals.length, amount: '$' + formatMoney(compassionTotal) }) }}
+                                    <span v-if="empathySelections.length > 0">{{ $t('empathy.empathy_steps_summary', { count: empathySelections.length, amount: '$' + formatMoney(selectedEmpathyTotal) }) }}</span>
+                                    <span v-else class="text-purple-200">{{ $t('empathy.skip_empathy') }}</span>
+                                </p>
+                            </div>
+                            <button @click="openConfirmSelectionsModal" class="px-8 py-3 rounded-lg font-bold shadow-lg transition transform active:scale-95 flex items-center gap-2 bg-white text-gray-800 hover:bg-gray-100">
+                                <i class="fas fa-check"></i> {{ empathySelections.length > 0 ? $t('empathy.confirm_all') : $t('empathy.confirm_skip_empathy') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW: Project Confirmation - shows in_progress tiers -->
+            <div v-if="grantViewMode === 'queue'" class="animate-fade-in-up">
+                <div class="bg-white rounded-xl shadow-lg border border-orange-200 overflow-hidden">
+                    <div class="bg-orange-50 border-b border-orange-100 p-4 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-orange-700"><i class="fas fa-clipboard-check mr-2"></i> {{ $t('confirmation.title') }}</h3>
+                            <div class="text-xs text-orange-600">{{ $t('confirmation.description') }}</div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="getProjectConfirmationTiers().length === 0" class="p-12 text-center text-gray-400">
+                        <div class="text-4xl mb-3"><i class="fas fa-clipboard-check"></i></div>
+                        <p>No tiers in progress. Start a project from the queue first.</p>
+                    </div>
+
+                    <table v-else class="w-full text-left">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="p-4">{{ $t('confirmation.th_project') }}</th>
+                                <th class="p-4 whitespace-nowrap">{{ $t('confirmation.th_step') }}</th>
+                                <th class="p-4">{{ $t('confirmation.th_intervention') }}</th>
+                                <th class="p-4 text-center">{{ $t('confirmation.th_score') }}</th>
+                                <th class="p-4 text-right">{{ $t('confirmation.th_monetary') }}</th>
+                                <th class="p-4 text-right">{{ $t('confirmation.th_inkind') }}</th>
+                                <th class="p-4 text-right">{{ $t('confirmation.th_community') }}</th>
+                                <th class="p-4 text-right">Donations</th>
+                                <th class="p-4 text-right">{{ $t('confirmation.th_action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm">
+                            <tr v-for="item in getProjectConfirmationTiers()" :key="item.project.id + '_' + item.tier.level" class="hover:bg-orange-50/30 transition">
+                                <td class="p-4">
+                                    <div class="font-bold text-gray-800 text-base">
+                                        <span class="cursor-pointer hover:underline hover:text-blue-600 transition" :title="$t('projects.view_details')" @click="openProjectDetailsModal(item.project.id)">{{ item.project.title }}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        <span v-if="item.project.categoryName" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(item.project.categoryName) }">{{ getCatName(item.project.categoryName) }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 rounded text-xs font-bold text-gray-500 bg-gray-200">{{ $t('steps.step_level', { level: item.tier.level }) }}</span>
+                                </td>
+                                <td class="p-4">
+                                    <div class="text-xs text-gray-600 max-w-xs truncate">{{ item.tier.intervention || $t('steps.no_description') }}</div>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <span class="inline-block px-2 py-1 rounded font-bold text-xs text-white" :style="{ backgroundColor: settings.theme.headerBg }">{{ computeStepScore(item.tier)?.toFixed(1) || '—' }}</span>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div class="font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(item.tier.allocatedMonetaryCost || 0) }}</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div :style="{ color: settings.theme.colorInkind }" v-if="(item.tier.inkindPeople || 0) * (item.tier.inkindHours || 0) > 0">
+                                        {{ (item.tier.inkindPeople || 0) * (item.tier.inkindHours || 0) }} {{ $t('common.hrs') }}
+                                    </div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div :style="{ color: settings.theme.colorCommunity }" v-if="(item.tier.communityPeople || 0) * (item.tier.communityHours || 0) > 0">
+                                        {{ (item.tier.communityPeople || 0) * (item.tier.communityHours || 0) }} {{ $t('common.hrs') }}
+                                    </div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div v-if="getTierDonationTotal(item.tier) > 0" class="font-bold text-pink-500">${{ formatMoney(getTierDonationTotal(item.tier)) }}</div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <button v-if="hasPerm('gm.completeStep')" @click="openCompleteProjectModal(item)" 
+                                            class="text-white px-4 py-2 rounded shadow-sm text-xs font-bold transition transform active:scale-95 flex items-center gap-2 hover:opacity-90 ml-auto"
+                                            :style="{ backgroundColor: settings.theme.headerBg }">
+                                        <i class="fas fa-check-circle"></i> {{ $t('steps.complete_step') }}
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Logbook tab: load only when user visits (see watch grantViewMode) -->
+            <div v-if="grantViewMode === 'logbook'" class="animate-fade-in-up">
+                <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-100 p-4 flex flex-wrap items-center justify-between gap-3">
+                        <h3 class="font-bold text-gray-800"><i class="fas fa-book mr-2"></i> {{ $t('logbook.title') }}</h3>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <label class="text-xs text-gray-500 font-medium">{{ $t('logbook.date_range') }}</label>
+                            <input v-model="logbookFilterFrom" type="date" class="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white" :title="$t('logbook.from')">
+                            <span class="text-gray-400 text-sm">–</span>
+                            <input v-model="logbookFilterTo" type="date" class="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white" :title="$t('logbook.to')">
+                            <label class="text-xs text-gray-500 font-medium ml-2">{{ $t('logbook.event_type') }}</label>
+                            <select v-model="logbookFilterEventType" class="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white min-w-[8rem]">
+                                <option value="all">{{ $t('logbook.filter_all') }}</option>
+                                <option value="Auth">{{ $t('logbook.filter_auth') }}</option>
+                                <option value="Project">{{ $t('logbook.filter_project') }}</option>
+                                <option value="Step">{{ $t('logbook.filter_step') }}</option>
+                                <option value="Grant">{{ $t('logbook.filter_grant') }}</option>
+                                <option value="Wallet">{{ $t('logbook.filter_wallet') }}</option>
+                                <option value="Scholarship">{{ $t('logbook.filter_scholarship') }}</option>
+                                <option value="Export">{{ $t('logbook.filter_export') }}</option>
+                                <option value="Note">{{ $t('logbook.filter_note') }}</option>
+                                <option value="Risk model">{{ $t('logbook.filter_risk_model') }}</option>
+                                <option value="Other">{{ $t('logbook.filter_other') }}</option>
+                            </select>
+                            <label class="text-xs text-gray-500 font-medium ml-2">{{ $t('logbook.user') }}</label>
+                            <select v-model="logbookFilterUser" class="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white min-w-[8rem]">
+                                <option value="all">{{ $t('logbook.filter_all_users') }}</option>
+                                <option v-for="u in logbookUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+                            </select>
+                            <button @click="downloadLogbookCsv()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-bold rounded transition" :disabled="logbookLoading" :title="filteredLogbookEntries.length ? $t('logbook.download_csv_rows', { count: filteredLogbookEntries.length }) : $t('logbook.download_csv_view')">
+                                <i class="fas fa-download mr-2"></i> {{ $t('logbook.download_csv') }}
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="logbookLoading" class="p-12 text-center text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>{{ $t('logbook.loading') }}</p>
+                    </div>
+                    <div v-else-if="!logbookEntries.length" class="p-12 text-center text-gray-400">
+                        <div class="text-4xl mb-3"><i class="fas fa-book"></i></div>
+                        <p>{{ $t('logbook.no_entries') }}</p>
+                    </div>
+                    <div v-else-if="!filteredLogbookEntries.length" class="p-12 text-center text-gray-400">
+                        <div class="text-4xl mb-3"><i class="fas fa-filter"></i></div>
+                        <p>{{ $t('logbook.no_matching') }}</p>
+                    </div>
+                    <table v-else class="w-full text-left">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="p-4">{{ $t('logbook.th_date') }}</th>
+                                <th class="p-4">{{ $t('logbook.th_time') }}</th>
+                                <th class="p-4">{{ $t('logbook.th_user') }}</th>
+                                <th class="p-4">{{ $t('logbook.th_action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm">
+                            <tr v-for="entry in filteredLogbookEntries" :key="entry.id" class="hover:bg-gray-50 transition">
+                                <td class="p-4 text-gray-600 whitespace-nowrap">{{ entry.created ? new Date(entry.created).toLocaleDateString() : '—' }}</td>
+                                <td class="p-4 text-gray-500 whitespace-nowrap">{{ entry.created ? new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' }}</td>
+                                <td class="p-4 text-gray-700 whitespace-nowrap">{{ entry.expand?.user?.name || entry.expand?.user?.email || '—' }}</td>
+                                <td class="p-4 text-gray-800">{{ entry.action || '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- NEW: Simplified Manual Grant - shows all backlog tiers -->
+            <div v-if="grantViewMode === 'manual'" class="animate-fade-in-up">
+                <div class="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
+                    <div class="bg-blue-50 border-b border-blue-100 p-4 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-blue-800"><i class="fas fa-list-ol mr-2"></i> {{ $t('queue.title') }}</h3>
+                            <div class="text-xs text-blue-600">{{ $t('queue.description') }} <span v-if="hasAlgorithmSelectedTiers" class="font-bold"><i class="fas fa-star text-green-500"></i> {{ $t('grants.compassion') }} <i class="fas fa-star text-purple-500 ml-2"></i> {{ $t('grants.empathy') }}</span></div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select v-model="queueTierFilter" class="border p-2 rounded text-sm focus:ring-blue-500 outline-none bg-white">
+                                <option value="all">{{ $t('queue.all_steps') }}</option>
+                                <option value="inkind">{{ $t('queue.only_inkind') }}</option>
+                            </select>
+                            <input v-model="searchManualGrant" type="text" :placeholder="$t('queue.search_placeholder')" class="border p-2 rounded text-sm w-48 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    
+                    <div v-if="getBacklogTiers().length === 0" class="p-12 text-center text-gray-400">
+                        <div class="text-4xl mb-3"><i class="fas fa-check-circle"></i></div>
+                        <p>{{ $t('queue.no_steps') }}</p>
+                    </div>
+
+                    <table v-else class="w-full text-left">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="p-4">{{ $t('queue.th_project') }}</th>
+                                <th class="p-4">{{ $t('queue.th_step') }}</th>
+                                <th class="p-4">{{ $t('queue.th_intervention') }}</th>
+                                <th class="p-4 text-center">{{ $t('queue.th_score') }}</th>
+                                <th class="p-4 text-right">{{ $t('queue.th_monetary') }}</th>
+                                <th class="p-4 text-right">{{ $t('queue.th_inkind') }}</th>
+                                <th class="p-4 text-right">{{ $t('queue.th_community') }}</th>
+                                <th class="p-4 text-right">Donations</th>
+                                <th class="p-4 text-right">{{ $t('queue.th_action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm">
+                            <tr v-for="item in getBacklogTiers().filter(t => {
+                                // Type filter
+                                if (queueTierFilter === 'inkind' && (t.monetaryTotal > 0 || t.inkindHours <= 0)) return false;
+                                // Search filter
+                                if (searchManualGrant && !t.projTitle.toLowerCase().includes(searchManualGrant.toLowerCase()) && !(t.intervention && t.intervention.toLowerCase().includes(searchManualGrant.toLowerCase()))) return false;
+                                return true;
+                            })" :key="item.projId + '_' + item.level" class="transition" :class="item.algorithmSelected ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-blue-50/30'">
+                                <td class="p-4">
+                                    <div class="font-bold text-gray-800 text-base">
+                                        <i v-if="item.algorithmSelected" class="fas fa-star mr-1" :class="item.algorithmSelectionType === 'empathy' ? 'text-purple-500' : 'text-green-500'" :title="item.algorithmSelectionType === 'empathy' ? $t('score.empathy_selection') : $t('score.compassion_selection')"></i>
+                                        <span class="cursor-pointer hover:underline hover:text-blue-600 transition" :title="$t('projects.view_details')" @click="openProjectDetailsModal(item.projId)">{{ item.projTitle }}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        <span v-if="item.project.categoryName" class="text-[9px] font-bold px-2 py-0.5 rounded text-white uppercase" :style="{ backgroundColor: getCategoryColor(item.project.categoryName) }">{{ getCatName(item.project.categoryName) }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 rounded text-xs font-bold text-gray-500 bg-gray-200">{{ $t('steps.step_level', { level: item.level }) }}</span>
+                                </td>
+                                <td class="p-4">
+                                    <div class="text-xs text-gray-600 max-w-xs truncate">{{ item.intervention || $t('steps.no_description') }}</div>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <span class="inline-block px-2 py-1 rounded font-bold text-xs text-white" :style="{ backgroundColor: settings.theme.headerBg }">{{ item.score?.toFixed(1) || '—' }}</span>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div class="font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(item.monetaryTotal) }}</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div :style="{ color: settings.theme.colorInkind }" v-if="item.inkindHours > 0">{{ item.inkindHours }} {{ $t('common.hrs') }}</div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div :style="{ color: settings.theme.colorCommunity }" v-if="item.communityHours > 0">{{ item.communityHours }} {{ $t('common.hrs') }}</div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div v-if="getTierDonationTotal(item.tier) > 0" class="font-bold text-pink-500">${{ formatMoney(getTierDonationTotal(item.tier)) }}</div>
+                                    <div class="text-gray-300" v-else>—</div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div class="flex items-center gap-2 justify-end">
+                                        <button v-if="item.algorithmSelected" @click="openUnselectTierModal(item)" 
+                                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded shadow-sm text-xs font-bold transition transform active:scale-95" :title="$t('queue.remove_selection')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        <button v-if="hasPerm('gm.startStep')" @click="openStartProjectModal(item)" 
+                                                class="text-white px-4 py-2 rounded shadow-sm text-xs font-bold transition transform active:scale-95 flex items-center gap-2 hover:opacity-90"
+                                                :style="{ backgroundColor: settings.theme.colorTierCompleted }">
+                                            <i class="fas fa-play"></i> {{ $t('queue.start_step') }}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div v-if="grantViewMode === 'inkind'" class="animate-fade-in-up">
+                <div class="bg-white rounded-xl shadow-lg border border-green-200 overflow-hidden">
+                    <div class="bg-green-50 border-b border-green-100 p-4">
+                        <h3 class="font-bold text-green-800"><i class="fas fa-hammer mr-2"></i> {{ $t('inkind.title') }}</h3>
+                        <div class="text-xs text-green-600">{{ $t('inkind.description') }}</div>
+                    </div>
+                    
+                    <div v-if="getInKindProjects.length === 0" class="p-12 text-center text-gray-400">
+                        <div class="text-4xl mb-3"><i class="fas fa-seedling"></i></div>
+                        <p>{{ $t('inkind.no_projects') }}</p>
+                    </div>
+
+                    <table v-else class="w-full text-left">
+                        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                            <tr>
+                                <th class="p-4">{{ $t('inkind.th_project_step') }}</th>
+                                <th class="p-4 text-center">{{ $t('score.score') }}</th>
+                                <th class="p-4">{{ $t('inkind.th_labor_value') }}</th>
+                                <th class="p-4">{{ $t('inkind.th_cash_needed') }}</th>
+                                <th class="p-4 text-right">{{ $t('confirmation.th_action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm">
+                            <tr v-for="item in getInKindProjects" :key="item.id" class="hover:bg-green-50/30 transition">
+                                <td class="p-4">
+                                    <div class="font-bold text-gray-800">{{ item.projName }}</div>
+                                    <div class="text-xs text-gray-500 flex items-center gap-1">
+                                        <span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded uppercase font-bold text-[10px]">{{ $t('steps.step_level', { level: item.level }) }}</span>
+                                        {{ item.intervention }}
+                                    </div>
+                                </td>
+                                <td class="p-4 text-center">
+                                    <div class="inline-block px-2 py-1 bg-gray-100 rounded text-gray-600 font-bold text-xs">{{ item.score }}</div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="font-bold text-green-600">+${{ formatMoney(item.laborVal) }}</div>
+                                    <div class="text-[10px] text-gray-400">
+                                        {{ $t('inkind.labor_calc', { people: item.laborPeople, hours: item.laborHours }) }}
+                                    </div>
+                                    <div v-if="item.laborFunded > 0" class="text-[10px] text-green-500 mt-0.5">
+                                        <i class="fas fa-check-circle mr-1"></i>${{ formatMoney(item.laborFunded) }} {{ $t('inkind.verified') }}
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <div class="font-bold text-red-600">-${{ formatMoney(item.cashVal) }}</div>
+                                    <div class="text-[10px] text-gray-500 bg-gray-100 inline-block px-1 rounded mt-0.5" v-if="item.walletName">
+                                        <i class="fas fa-wallet mr-1"></i>{{ item.walletName }}
+                                    </div>
+                                    <div v-else-if="item.cashVal > 0" class="text-[10px] text-red-500 font-bold animate-pulse">
+                                        <i class="fas fa-exclamation-triangle"></i> {{ $t('inkind.no_wallet') }}
+                                    </div>
+                                    <div v-else class="text-[10px] text-gray-400">
+                                        <i class="fas fa-check-circle"></i> {{ $t('inkind.labor_only') }}
+                                    </div>
+                                    <div v-if="item.costsFunded > 0" class="text-[10px] text-green-500 mt-0.5">
+                                        <i class="fas fa-check-circle mr-1"></i>${{ formatMoney(item.costsFunded) }} {{ $t('inkind.verified') }}
+                                    </div>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div class="flex flex-col items-end gap-2">
+                                        <button @click="openInKindAllocationDialog(item)" 
+                                                :disabled="!item.allowPartial && item.cashVal > 0 && (!item.walletId || (item.walletId && wallets.find(w => w.id === item.walletId) && item.cashVal > wallets.find(w => w.id === item.walletId).balance))"
+                                                class="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded shadow-sm text-xs font-bold transition transform active:scale-95 flex items-center gap-2">
+                                            <i class="fas fa-hand-holding-heart"></i> {{ $t('inkind.allocate_plan') }}
+                                        </button>
+                                        <span v-if="item.allowPartial" class="text-[10px] text-green-600 font-bold">
+                                            <i class="fas fa-sliders-h mr-1"></i> {{ $t('inkind.divisible') }}
+                                        </span>
+                                        <span v-else class="text-[10px] text-red-500 font-bold">
+                                            <i class="fas fa-lock mr-1"></i> {{ $t('inkind.all_or_nothing') }}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Scholarships Tab -->
+            <div v-if="grantViewMode === 'scholarships'" class="animate-fade-in-up">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left: Create Scholarship Form -->
+                    <div class="bg-white rounded-xl shadow-lg border border-yellow-200 overflow-hidden">
+                        <div class="bg-yellow-50 border-b border-yellow-100 p-4">
+                            <h3 class="font-bold text-yellow-800"><i class="fas fa-graduation-cap mr-2"></i> {{ $t('scholarships.create_title') }}</h3>
+                            <div class="text-xs text-yellow-600">{{ $t('scholarships.create_desc') }}</div>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <!-- Student Name -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.student_name') }}</label>
+                                <input v-model="modalScholarship.name" type="text" class="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none" :placeholder="$t('scholarships.student_name_placeholder')">
+                            </div>
+                            
+                            <!-- Date Range -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.start_date') }}</label>
+                                    <input v-model="modalScholarship.startDate" type="date" class="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.end_date') }}</label>
+                                    <input v-model="modalScholarship.endDate" type="date" class="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none">
+                                </div>
+                            </div>
+                            
+                            <!-- Calculated Values (read-only) -->
+                            <div class="bg-yellow-50 rounded-lg p-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">{{ $t('scholarships.duration') }}</span>
+                                    <span class="font-bold text-gray-800">{{ $t('scholarships.months', { count: getScholarshipMonths() }) }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">{{ $t('scholarships.monthly_rate') }}</span>
+                                    <span class="font-bold text-gray-800">{{ $t('scholarships.per_month', { amount: '$' + formatMoney(settings.scholarshipRate) }) }}</span>
+                                </div>
+                                <div class="flex justify-between text-lg border-t border-yellow-200 pt-2 mt-2">
+                                    <span class="text-yellow-700 font-bold">{{ $t('scholarships.value') }}</span>
+                                    <span class="font-bold text-yellow-700">${{ formatMoney(getScholarshipMonths() * settings.scholarshipRate) }}</span>
+                                </div>
+                                <div class="text-[10px] text-gray-500 italic">{{ $t('scholarships.inkind_not_deducted') }}</div>
+                            </div>
+                            
+                            <!-- Fixed Cost (optional) -->
+                            <div class="border-t pt-4">
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.fixed_cost_optional') }}</label>
+                                <p class="text-[10px] text-gray-500 mb-2">{{ $t('scholarships.fixed_cost_desc') }}</p>
+                                <input v-model.number="modalScholarship.fixedCost" type="number" min="0" class="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none" :placeholder="$t('budget_modal.placeholder_zero')">
+                            </div>
+                            
+                            <!-- Wallet Selector (only if fixedCost > 0) -->
+                            <div v-if="modalScholarship.fixedCost > 0">
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.deduct_from') }}</label>
+                                <select v-model="modalScholarship.walletId" class="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none">
+                                    <option :value="null" disabled>{{ $t('scholarships.select_wallet') }}</option>
+                                    <option v-for="w in wallets" :key="w.id" :value="w.id">{{ w.name }} (${{ formatMoney(w.balance) }})</option>
+                                </select>
+                                <div v-if="modalScholarship.walletId && wallets.find(w => w.id === modalScholarship.walletId) && modalScholarship.fixedCost > wallets.find(w => w.id === modalScholarship.walletId).balance" class="text-xs text-red-500 mt-1">
+                                    <i class="fas fa-exclamation-triangle"></i> {{ $t('scholarships.insufficient_funds') }}
+                                </div>
+                            </div>
+                            
+                            <!-- Description (Rich Text) -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.description') }}</label>
+                                <div id="scholarship-description-editor" class="bg-white border rounded h-24"></div>
+                            </div>
+                            
+                            <!-- Feedback (Rich Text) -->
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">{{ $t('scholarships.feedback_notes') }}</label>
+                                <div id="scholarship-feedback-editor" class="bg-white border rounded h-20"></div>
+                            </div>
+                            
+                            <!-- Create Button -->
+                            <button @click="saveScholarship()" 
+                                    :disabled="!modalScholarship.name || !modalScholarship.startDate || !modalScholarship.endDate || getScholarshipMonths() <= 0 || (modalScholarship.fixedCost > 0 && !modalScholarship.walletId)"
+                                    class="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
+                                <i class="fas fa-graduation-cap"></i> {{ $t('scholarships.create_button') }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Existing Scholarships List -->
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gray-50 border-b border-gray-100 p-4">
+                            <h3 class="font-bold text-gray-800"><i class="fas fa-list mr-2"></i> {{ $t('scholarships.existing_title') }}</h3>
+                            <div class="text-xs text-gray-500">{{ getScholarships().length }} scholarship{{ getScholarships().length !== 1 ? 's' : '' }} total</div>
+                        </div>
+                        
+                        <div v-if="getScholarships().length === 0" class="p-12 text-center text-gray-400">
+                            <div class="text-4xl mb-3"><i class="fas fa-graduation-cap"></i></div>
+                            <p>{{ $t('scholarships.no_scholarships') }}</p>
+                        </div>
+                        
+                        <div v-else class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                            <div v-for="scholarship in getScholarships()" :key="scholarship.id" class="p-4 hover:bg-yellow-50/30 transition">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="font-bold text-gray-800">{{ scholarship.title }}</div>
+                                        <div class="text-xs text-gray-500 mt-1">
+                                            <i class="fas fa-calendar mr-1"></i>
+                                            {{ scholarship.scholarshipStartDate ? new Date(scholarship.scholarshipStartDate).toLocaleDateString() : 'N/A' }} - 
+                                            {{ scholarship.scholarshipEndDate ? new Date(scholarship.scholarshipEndDate).toLocaleDateString() : 'N/A' }}
+                                        </div>
+                                        <div v-if="scholarship.description" class="text-xs text-gray-600 mt-2 line-clamp-2">{{ stripHtml(scholarship.description) }}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-yellow-600">${{ formatMoney(scholarship.scholarshipValue || 0) }}</div>
+                                        <div class="text-[10px] text-gray-400">{{ $t('scholarships.inkind_value_label') }}</div>
+                                        <div v-if="scholarship.scholarshipFixedCost > 0" class="text-xs text-red-600 mt-1">
+                                            -${{ formatMoney(scholarship.scholarshipFixedCost) }} {{ $t('scholarships.fixed_label') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+

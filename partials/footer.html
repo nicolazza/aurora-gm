@@ -1,0 +1,46 @@
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white border-t-4" :style="{ borderTopColor: settings.theme.headerBg }">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <!-- Left: App Name -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-white text-gray-800 p-2 rounded-full w-10 h-10 flex items-center justify-center shadow-lg">
+                        <i class="fas fa-hand-holding-heart"></i>
+                    </div>
+                    <span class="font-bold text-lg tracking-wide">{{ $t('footer.charity_dashboard') }}</span>
+                </div>
+                
+                <!-- Center: Motivational Quote -->
+                <div class="text-center flex-1 px-4">
+                    <p class="text-sm italic text-gray-300">
+                        {{ $t('footer.quote') }}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">{{ $t('footer.quote_author') }}</p>
+                </div>
+                
+                <!-- Right: Login/Logout Button -->
+                <div class="w-full md:w-auto flex justify-center md:justify-end">
+                    <transition name="fade" mode="out-in">
+                        <button 
+                            v-if="!isAuthenticated" 
+                            @click="showLoginModal = true" 
+                            key="login"
+                            class="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded text-sm font-bold transition-all duration-300 flex items-center gap-2"
+                        >
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>{{ $t('footer.login') }}</span>
+                        </button>
+                        <button 
+                            v-else 
+                            @click="logout()" 
+                            key="logout"
+                            class="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded text-sm font-bold transition-all duration-300 flex items-center gap-2"
+                        >
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>{{ $t('footer.logged_in_as', { name: getCurrentUserName(), role: userRole === 'admin' ? $t('footer.role_admin') : userRole === 'staff' ? $t('footer.role_staff') : $t('footer.role_guest') }) }}</span>
+                        </button>
+                    </transition>
+                </div>
+            </div>
+        </div>
+    </footer>

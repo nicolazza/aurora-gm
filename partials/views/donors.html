@@ -1,0 +1,273 @@
+        <div v-else-if="currentView === 'donors'" class="max-w-4xl mx-auto animate-fade-in-up">
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-5">
+                <h2 class="text-3xl font-bold text-gray-800">{{ $t('nav.donors') }}</h2>
+                <button @click="showAddDonorModal = true"
+                        class="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md hover:shadow-lg transition-all hover:scale-105"
+                        :style="{ backgroundColor: settings.theme.headerBg }">
+                    <i class="fas fa-plus text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Full-width Total hero card -->
+            <div class="rounded-xl px-6 py-5 mb-3 border-2 text-center"
+                 :style="{ borderColor: settings.theme.headerBg, backgroundColor: colorAlpha(settings.theme.headerBg, 0.06) }">
+                <i class="fas fa-hand-holding-dollar text-2xl mb-1" :style="{ color: settings.theme.headerBg }"></i>
+                <div class="text-3xl font-bold font-mono" :style="{ color: settings.theme.headerBg }">
+                    ${{ formatMoney(((donorHeroTotals || {}).community || 0) + ((donorHeroTotals || {}).inkind || 0) + ((donorHeroTotals || {}).donations || 0)) }}
+                </div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-1">Total Contributions</div>
+                <div class="text-xs text-gray-400">{{ donors.length }} donor{{ donors.length !== 1 ? 's' : '' }}</div>
+            </div>
+
+            <!-- Hero cards: Community / In-Kind / Donations -->
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <button @click="donorActiveTab = 'community'"
+                        class="rounded-xl px-4 py-4 text-center transition-all border-2 cursor-pointer"
+                        :class="donorActiveTab === 'community' ? 'shadow-lg scale-[1.02]' : 'opacity-60 hover:opacity-80'"
+                        :style="{ borderColor: donorActiveTab === 'community' ? (settings.theme.colorCommunity || '#ea580c') : 'transparent', backgroundColor: colorAlpha(settings.theme.colorCommunity || '#ea580c', donorActiveTab === 'community' ? 0.08 : 0.04) }">
+                    <i class="fas fa-users text-xl mb-1" :style="{ color: settings.theme.colorCommunity || '#ea580c' }"></i>
+                    <div class="text-xl font-bold font-mono" :style="{ color: settings.theme.colorCommunity || '#ea580c' }">${{ formatMoney((donorHeroTotals || {}).community || 0) }}</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-0.5">Community</div>
+                </button>
+                <button @click="donorActiveTab = 'inkind'"
+                        class="rounded-xl px-4 py-4 text-center transition-all border-2 cursor-pointer"
+                        :class="donorActiveTab === 'inkind' ? 'shadow-lg scale-[1.02]' : 'opacity-60 hover:opacity-80'"
+                        :style="{ borderColor: donorActiveTab === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : 'transparent', backgroundColor: colorAlpha(settings.theme.colorInkind || '#2563eb', donorActiveTab === 'inkind' ? 0.08 : 0.04) }">
+                    <i class="fas fa-hard-hat text-xl mb-1" :style="{ color: settings.theme.colorInkind || '#2563eb' }"></i>
+                    <div class="text-xl font-bold font-mono" :style="{ color: settings.theme.colorInkind || '#2563eb' }">${{ formatMoney((donorHeroTotals || {}).inkind || 0) }}</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-0.5">In-Kind</div>
+                </button>
+                <button @click="donorActiveTab = 'donations'"
+                        class="rounded-xl px-4 py-4 text-center transition-all border-2 cursor-pointer"
+                        :class="donorActiveTab === 'donations' ? 'shadow-lg scale-[1.02]' : 'opacity-60 hover:opacity-80'"
+                        :style="{ borderColor: donorActiveTab === 'donations' ? '#ec4899' : 'transparent', backgroundColor: donorActiveTab === 'donations' ? 'rgba(236,72,153,0.08)' : 'rgba(236,72,153,0.04)' }">
+                    <i class="fas fa-hand-holding-heart text-xl mb-1 text-pink-500"></i>
+                    <div class="text-xl font-bold font-mono text-pink-500">${{ formatMoney((donorHeroTotals || {}).donations || 0) }}</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mt-0.5">Donations</div>
+                </button>
+            </div>
+
+            <!-- Skeleton loader while fetching or before first fetch -->
+            <div v-if="donorLaborLogsLoading || !donorLaborLogsFetched" class="space-y-3">
+                <div class="flex gap-2 mb-4">
+                    <div class="w-16 h-8 bg-gray-100 rounded-lg animate-pulse"></div>
+                    <div class="w-20 h-8 bg-gray-100 rounded-lg animate-pulse"></div>
+                    <div class="w-20 h-8 bg-gray-100 rounded-lg animate-pulse"></div>
+                </div>
+                <div v-for="n in 4" :key="'skel-'+n" class="bg-white rounded-xl border border-gray-100 px-5 py-4 flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 animate-pulse shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                        <div class="h-3 bg-gray-100 rounded w-20 animate-pulse"></div>
+                    </div>
+                    <div class="w-12 space-y-1">
+                        <div class="h-4 bg-gray-100 rounded animate-pulse"></div>
+                        <div class="h-2 bg-gray-100 rounded animate-pulse"></div>
+                    </div>
+                    <div class="w-20 space-y-1">
+                        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+                        <div class="h-2 bg-gray-100 rounded animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty state: no donors at all -->
+            <div v-else-if="donors.length === 0" class="text-center text-gray-400 py-16">
+                <i class="fas fa-hand-holding-heart text-5xl mb-4 block"></i>
+                <p class="text-lg">No donors yet</p>
+                <p class="text-sm mt-1">Add your first donor to start tracking contributions</p>
+            </div>
+
+            <!-- Empty state: no donors for active tab -->
+            <div v-else-if="(donorsForActiveTab || []).length === 0" class="text-center text-gray-400 py-16">
+                <i class="fas fa-hand-holding-heart text-5xl mb-4 block opacity-50"></i>
+                <p class="text-lg">No donors with {{ donorActiveTab === 'inkind' ? 'in-kind' : donorActiveTab === 'community' ? 'community' : 'donation' }} contributions</p>
+                <p class="text-sm mt-1">Switch to another tab or add contributions in FM / GM</p>
+            </div>
+
+            <!-- Donor table (filtered by active hero card) -->
+            <div v-else class="space-y-3">
+                <!-- Sort buttons -->
+                <div class="flex gap-2 mb-1 flex-wrap">
+                    <button @click="donorTableSort = 'name'"
+                            class="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                            :class="donorTableSort === 'name' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+                        Name
+                    </button>
+                    <button @click="donorTableSort = donorTableSort === 'amount_desc' ? 'amount_asc' : 'amount_desc'"
+                            class="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                            :class="donorTableSort === 'amount_desc' || donorTableSort === 'amount_asc' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+                        Amount {{ donorTableSort === 'amount_asc' ? '↑' : donorTableSort === 'amount_desc' ? '↓' : '' }}
+                    </button>
+                    <button @click="donorTableSort = donorTableSort === 'projects_desc' ? 'projects_asc' : 'projects_desc'"
+                            class="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                            :class="donorTableSort === 'projects_desc' || donorTableSort === 'projects_asc' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+                        Projects {{ donorTableSort === 'projects_asc' ? '↑' : donorTableSort === 'projects_desc' ? '↓' : '' }}
+                    </button>
+                    <button v-if="donorActiveTab === 'community' || donorActiveTab === 'inkind'"
+                            @click="donorTableSort = donorTableSort === 'hours_desc' ? 'hours_asc' : 'hours_desc'"
+                            class="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                            :class="donorTableSort === 'hours_desc' || donorTableSort === 'hours_asc' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'">
+                        Hours {{ donorTableSort === 'hours_asc' ? '↑' : donorTableSort === 'hours_desc' ? '↓' : '' }}
+                    </button>
+                </div>
+
+                <!-- Donor rows -->
+                <div v-for="donor in (donorsForActiveTabSorted || [])" :key="donor.id"
+                     class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md">
+                    <div class="flex items-center gap-4 px-5 py-4 cursor-pointer" @click="donorExpanded === donor.id ? donorExpanded = null : donorExpanded = donor.id">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                             :style="{ backgroundColor: donorActiveTab === 'community' ? (settings.theme.colorCommunity || '#ea580c') : donorActiveTab === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : '#ec4899' }">
+                            {{ donor.name.charAt(0).toUpperCase() }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-semibold text-gray-800">{{ donor.name }}</h3>
+                            <p v-if="donor.contact" class="text-xs text-gray-400 truncate">{{ donor.contact }}</p>
+                        </div>
+                        <div class="text-center shrink-0 px-2">
+                            <div class="text-sm font-bold text-gray-600">{{ getDonorProjectCount(donor.id) }}</div>
+                            <div class="text-[9px] text-gray-400 uppercase tracking-wide">projects</div>
+                        </div>
+                        <div v-if="donorActiveTab === 'community' || donorActiveTab === 'inkind'" class="text-center shrink-0 px-2">
+                            <div class="text-sm font-bold text-gray-600">{{ (donorHoursMap || new Map()).get(donor.id)?.[donorActiveTab] || 0 }}</div>
+                            <div class="text-[9px] text-gray-400 uppercase tracking-wide">hours</div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="text-lg font-bold font-mono"
+                                 :style="{ color: donorActiveTab === 'community' ? (settings.theme.colorCommunity || '#ea580c') : donorActiveTab === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : '#ec4899' }">
+                                ${{ formatMoney((donorBreakdownMap || new Map()).get(donor.id)?.[donorActiveTab] || 0) }}
+                            </div>
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wide">{{ donorActiveTab === 'inkind' ? 'in-kind' : donorActiveTab }}</div>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-400 transition-transform shrink-0" :class="{ 'rotate-180': donorExpanded === donor.id }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </div>
+
+                    <div v-if="donorExpanded === donor.id" class="border-t border-gray-100 px-5 py-4 bg-gray-50/50">
+                        <div v-if="donor.notes" class="text-xs text-gray-500 mb-3 italic">{{ donor.notes }}</div>
+
+                        <div v-if="getDonorProjectRefs(donor.id).length > 0" class="space-y-2 mb-4">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contributions</div>
+                            <div v-for="ref in getDonorProjectRefs(donor.id)" :key="ref.projectId + '-' + ref.tierLevel"
+                                 class="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-medium text-gray-700">{{ ref.projectTitle }}</span>
+                                    <span class="text-xs text-gray-400 ml-1">Step {{ ref.tierLevel }}</span>
+                                    <p class="text-xs text-gray-500 truncate">{{ ref.description }}</p>
+                                </div>
+                                <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                                      :class="{
+                                          'bg-emerald-50 text-emerald-600': ref.type === 'cash',
+                                          'bg-blue-50 text-blue-600': ref.type === 'discount',
+                                          'bg-green-50 text-green-600': ref.type === 'third_party_purchase',
+                                          'bg-purple-50 text-purple-600': ref.type === 'in_kind_service',
+                                          'bg-orange-50 text-orange-600': ref.type === 'in_kind_product',
+                                      }">
+                                    {{ ref.type.replace(/_/g, ' ') }}
+                                </span>
+                                <span class="text-sm font-bold font-mono text-gray-700">${{ formatMoney(ref.value) }}</span>
+                            </div>
+                        </div>
+                        <div v-else class="text-xs text-gray-400 italic mb-4">No contributions yet</div>
+
+                        <div class="flex gap-2">
+                            <button @click.stop="editingDonor = { ...donor }; showEditDonorModal = true"
+                                    class="text-xs px-3 py-1.5 rounded-md text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                                <i class="fas fa-pen mr-1"></i>Edit
+                            </button>
+                            <button @click.stop="deleteDonor(donor.id)"
+                                    class="text-xs px-3 py-1.5 rounded-md text-red-500 bg-white border border-red-200 hover:bg-red-50 transition-colors">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="donorLaborLogsPage < donorLaborLogsTotalPages" class="text-center py-6">
+                <button @click="loadMoreDonorLaborLogs" :disabled="donorLaborLogsLoadingMore"
+                        class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
+                        :class="donorLaborLogsLoadingMore ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                    <i v-if="donorLaborLogsLoadingMore" class="fas fa-spinner fa-spin mr-2"></i>
+                    <i v-else class="fas fa-chevron-down mr-2"></i>
+                    {{ donorLaborLogsLoadingMore ? 'Loading...' : 'Load more labor logs' }}
+                    <span class="text-gray-400 ml-1">({{ donorLaborLogs.length }} / {{ donorLaborLogsTotalItems }})</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Add Donor Modal -->
+        <div v-if="showAddDonorModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm" @click.self="showAddDonorModal = false">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+                <div class="p-4 text-white flex justify-between items-center" :style="{ backgroundColor: settings.theme.headerBg }">
+                    <h3 class="font-bold text-lg"><i class="fas fa-hand-holding-heart mr-2"></i> Add Donor</h3>
+                    <button @click="showAddDonorModal = false" class="hover:opacity-80"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Name *</label>
+                        <input v-model="newDonorName" type="text" placeholder="Donor name..."
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @keydown.enter="newDonorName.trim() && createDonor(newDonorName, newDonorContact, newDonorNotes).then(() => { showAddDonorModal = false; newDonorName = ''; newDonorContact = ''; newDonorNotes = ''; })">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Contact</label>
+                        <input v-model="newDonorContact" type="text" placeholder="Phone, email..."
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
+                        <textarea v-model="newDonorNotes" placeholder="Any notes..."
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 p-4 border-t border-gray-100">
+                    <button @click="showAddDonorModal = false" class="px-6 py-2 bg-white border border-gray-300 rounded text-gray-600 font-bold hover:bg-gray-50 shadow-sm">Cancel</button>
+                    <button @click="createDonor(newDonorName, newDonorContact, newDonorNotes).then(() => { showAddDonorModal = false; newDonorName = ''; newDonorContact = ''; newDonorNotes = ''; })"
+                            :disabled="!newDonorName.trim()"
+                            class="px-6 py-2 text-white rounded font-bold shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
+                            :style="{ backgroundColor: settings.theme.headerBg }">
+                        Add Donor
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Donor Modal -->
+        <div v-if="showEditDonorModal && editingDonor" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm" @click.self="showEditDonorModal = false">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+                <div class="p-4 text-white flex justify-between items-center" :style="{ backgroundColor: settings.theme.headerBg }">
+                    <h3 class="font-bold text-lg"><i class="fas fa-pen mr-2"></i> Edit Donor</h3>
+                    <button @click="showEditDonorModal = false" class="hover:opacity-80"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Name *</label>
+                        <input v-model="editingDonor.name" type="text"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Contact</label>
+                        <input v-model="editingDonor.contact" type="text"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
+                        <textarea v-model="editingDonor.notes"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 p-4 border-t border-gray-100">
+                    <button @click="showEditDonorModal = false" class="px-6 py-2 bg-white border border-gray-300 rounded text-gray-600 font-bold hover:bg-gray-50 shadow-sm">Cancel</button>
+                    <button @click="updateDonor(editingDonor.id, editingDonor).then(() => showEditDonorModal = false)"
+                            :disabled="!editingDonor.name.trim()"
+                            class="px-6 py-2 text-white rounded font-bold shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
+                            :style="{ backgroundColor: settings.theme.headerBg }">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>

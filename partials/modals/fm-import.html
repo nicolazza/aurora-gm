@@ -1,0 +1,426 @@
+    <div v-if="showFmImportModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[71] p-4 backdrop-blur-sm" @click.self="closeFmImportModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up">
+            <div class="p-4 text-white flex justify-between items-center shrink-0" :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorMonetary + ', ' + settings.theme.colorInkind + ', ' + settings.theme.colorCommunity + ')' }">
+                <h3 class="font-bold text-lg"><i class="fas fa-file-import mr-2"></i> {{ $t('fm_import.title') }}</h3>
+                <button type="button" @click="closeFmImportModal()" class="hover:opacity-80 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div v-if="fmImportLoading" class="flex flex-col items-center justify-center py-12">
+                    <svg class="w-10 h-10 text-green-600 animate-spin mb-3" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-gray-600 text-sm">{{ $t('fm_import.loading') }}</span>
+                </div>
+                <div v-else-if="fmImportError" class="py-4">
+                    <p class="text-red-600 text-sm">{{ fmImportError }}</p>
+                </div>
+                <template v-else>
+                    <p v-if="fmImportTable.length === 0" class="text-gray-600 text-sm py-4">{{ $t('fm_import.no_transactions') }}</p>
+                    <template v-else>
+                        <table class="w-full text-sm border-collapse border border-gray-200 rounded-lg overflow-hidden">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="text-left p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_cost_type') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_budget') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_verified') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_difference') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in fmImportTable" :key="row.costTypeName" class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="p-2 text-gray-800">{{ getCostTypeName(row.costTypeName) }}</td>
+                                    <td class="p-2 text-right font-mono">${{ formatMoney(row.budget) }}</td>
+                                    <td class="p-2 text-right font-mono">${{ formatMoney(row.verified) }}</td>
+                                    <td class="p-2 text-right font-mono" :class="row.difference > 0 ? 'text-red-600' : row.difference < 0 ? 'text-green-600' : 'text-gray-500'">
+                                        {{ row.difference >= 0 ? '+' : '-' }}${{ formatMoney(Math.abs(row.difference)) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                                    <td class="p-2 text-gray-800">{{ $t('fm_import.total') }}</td>
+                                    <td class="p-2 text-right font-mono">${{ formatMoney(fmImportTable.reduce((s, r) => s + r.budget, 0)) }}</td>
+                                    <td class="p-2 text-right font-mono">${{ formatMoney(fmImportTable.reduce((s, r) => s + r.verified, 0)) }}</td>
+                                    <td class="p-2 text-right font-mono" :class="(fmImportTable.reduce((s, r) => s + r.verified, 0) - fmImportTable.reduce((s, r) => s + r.budget, 0)) > 0 ? 'text-red-600' : (fmImportTable.reduce((s, r) => s + r.verified, 0) - fmImportTable.reduce((s, r) => s + r.budget, 0)) < 0 ? 'text-green-600' : 'text-gray-500'">
+                                        {{ (fmImportTable.reduce((s, r) => s + r.verified, 0) - fmImportTable.reduce((s, r) => s + r.budget, 0)) >= 0 ? '+' : '-' }}${{ formatMoney(Math.abs(fmImportTable.reduce((s, r) => s + r.verified, 0) - fmImportTable.reduce((s, r) => s + r.budget, 0))) }}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <p class="mt-4 text-sm text-gray-700 font-medium">{{ fmImportSummary }}</p>
+                    </template>
+
+                    <!-- Labor section: summary + individual entries -->
+                    <template v-if="fmImportLabor && (fmImportLabor.inkindCount > 0 || fmImportLabor.communityCount > 0)">
+                        <h4 class="text-sm font-bold text-gray-700 mt-5 mb-2"><i class="fas fa-hard-hat mr-1.5"></i>{{ $t('fm_import.labor_summary') }}</h4>
+                        <table class="w-full text-sm border-collapse border border-gray-200 rounded-lg overflow-hidden">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="text-left p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_type') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_planned') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_logged') }}</th>
+                                    <th class="text-right p-2 border-b border-gray-200 font-semibold text-gray-700">{{ $t('fm_import.col_entries') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="fmImportLabor.inkindCount > 0" class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="p-2" :style="{ color: settings.theme.colorInkind || '#2563eb' }"><i class="fas fa-hard-hat mr-1"></i> {{ $t('fm_import.inkind') }}</td>
+                                    <td class="p-2 text-right font-mono text-gray-600">{{ (completeProjectData?.tier?.inkindPeople || 0) * (completeProjectData?.tier?.inkindHours || 0) }} {{ $t('fm_import.hrs_abbr') }}</td>
+                                    <td class="p-2 text-right font-mono font-semibold" :style="{ color: settings.theme.colorInkind || '#2563eb' }">{{ fmImportLabor.inkindTotalHours }} {{ $t('fm_import.hrs_abbr') }}</td>
+                                    <td class="p-2 text-right text-gray-500">{{ fmImportLabor.inkindCount }}</td>
+                                </tr>
+                                <tr v-if="fmImportLabor.communityCount > 0" class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="p-2" :style="{ color: settings.theme.colorCommunity || '#ea580c' }"><i class="fas fa-users mr-1"></i> {{ $t('fm_import.community') }}</td>
+                                    <td class="p-2 text-right font-mono text-gray-600">{{ (completeProjectData?.tier?.communityPeople || 0) * (completeProjectData?.tier?.communityHours || 0) }} {{ $t('fm_import.hrs_abbr') }}</td>
+                                    <td class="p-2 text-right font-mono font-semibold" :style="{ color: settings.theme.colorCommunity || '#ea580c' }">{{ fmImportLabor.communityTotalHours }} {{ $t('fm_import.hrs_abbr') }}</td>
+                                    <td class="p-2 text-right text-gray-500">{{ fmImportLabor.communityCount }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Individual labor log entries -->
+                        <template v-if="fmImportLaborLogs.length > 0">
+                            <h4 class="text-sm font-bold text-gray-700 mt-4 mb-2"><i class="fas fa-list mr-1.5"></i>{{ $t('fm_import.labor_logs') }}</h4>
+                            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-left">
+                                            <th class="px-3 py-2 font-semibold text-gray-600 whitespace-nowrap">{{ $t('fm_import.col_date') }}</th>
+                                            <th class="px-3 py-2 font-semibold text-gray-600">{{ $t('fm_import.col_type') }}</th>
+                                            <th class="px-3 py-2 font-semibold text-gray-600 text-right">{{ $t('fm_import.col_people') }}</th>
+                                            <th class="px-3 py-2 font-semibold text-gray-600 text-right">{{ $t('fm_import.col_hours') }}</th>
+                                            <th class="px-3 py-2 font-semibold text-gray-600 text-right">{{ $t('fm_import.col_rate') }}</th>
+                                            <th class="px-3 py-2 font-semibold text-gray-600">{{ $t('fm_import.col_user') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(log, idx) in fmImportLaborLogs" :key="idx" class="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                                            <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ log.date }}</td>
+                                            <td class="px-3 py-2">
+                                                <span class="flex items-center gap-2">
+                                                    <span class="w-5 h-5 flex items-center justify-center rounded shrink-0"
+                                                          :style="{ backgroundColor: (log.type === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : (settings.theme.colorCommunity || '#ea580c')) + '20', color: log.type === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : (settings.theme.colorCommunity || '#ea580c') }">
+                                                        <i :class="log.type === 'inkind' ? 'fas fa-hard-hat' : 'fas fa-users'" style="font-size: 9px"></i>
+                                                    </span>
+                                                    <span :style="{ color: log.type === 'inkind' ? (settings.theme.colorInkind || '#2563eb') : (settings.theme.colorCommunity || '#ea580c') }">{{ log.type === 'inkind' ? $t('fm_import.inkind') : $t('fm_import.community') }}</span>
+                                                </span>
+                                            </td>
+                                            <td class="px-3 py-2 text-right text-gray-700">{{ log.people }}</td>
+                                            <td class="px-3 py-2 text-right text-gray-700">{{ log.hours }}{{ $t('fm_import.hrs_compact') }}</td>
+                                            <td class="px-3 py-2 text-right text-gray-700">{{ log.rate ? '$' + formatMoney(log.rate) + '/hr' : '—' }}</td>
+                                            <td class="px-3 py-2 text-gray-600">{{ log.user }}</td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="border-t-2 border-gray-200 bg-gray-50">
+                                            <td colspan="3" class="px-3 py-2 text-gray-700 font-medium">{{ $t('fm_import.total_person_hours') }}</td>
+                                            <td class="px-3 py-2 text-right font-semibold text-gray-800">{{ fmImportLaborLogs.reduce((s, l) => s + l.people * l.hours, 0) }}{{ $t('fm_import.hrs_compact') }}</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <p class="mt-2 text-xs text-gray-500 italic"><i class="fas fa-info-circle mr-1"></i>{{ $t('fm_import.labor_confirm_hint') }}</p>
+                        </template>
+                    </template>
+                    <p v-else-if="fmImportLabor && fmImportLabor.inkindCount === 0 && fmImportLabor.communityCount === 0" class="mt-4 text-xs text-gray-400">{{ $t('fm_import.no_labor_logs') }}</p>
+                </template>
+            </div>
+            <div v-if="!fmImportLoading" class="p-4 border-t flex justify-end gap-2 bg-gray-50 shrink-0">
+                <button type="button" @click="closeFmImportModal()" class="px-4 py-2 rounded text-gray-600 hover:bg-gray-200 text-sm">{{ $t('fm_import.cancel') }}</button>
+                <button type="button" @click="applyFmImport()" :disabled="(!fmImportVerified || fmImportTable.length === 0) && !(fmImportLabor && (fmImportLabor.inkindCount > 0 || fmImportLabor.communityCount > 0))" class="px-6 py-2 text-white rounded font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition" :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorMonetary + ', ' + settings.theme.colorInkind + ', ' + settings.theme.colorCommunity + ')' }">
+                    <i class="fas fa-check mr-1"></i> {{ $t('fm_import.apply') }}
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- In-Kind Allocation Dialog -->
+    <div v-if="showInKindAllocationDialog && inKindAllocationItem" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md animate-fade-in-up max-h-[90vh] overflow-y-auto">
+            <div class="p-4 bg-green-800 text-white flex justify-between items-center sticky top-0 z-10">
+                <h3 class="font-bold text-lg"><i class="fas fa-hand-holding-heart mr-2"></i> {{ $t('inkind_allocation.title') }}</h3>
+                <button @click="showInKindAllocationDialog = false; inKindAllocationItem = null; inKindAllocationLabor = { people: 0, hours: 0, rate: 0 }; inKindAllocationCosts = { assets: 0, services: 0, logistics: 0, support: 0 };" class="hover:text-gray-300"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <div class="text-sm font-bold text-gray-700 mb-1">{{ $t('inkind_allocation.project_label') }}</div>
+                    <div class="text-lg font-bold text-gray-800">{{ inKindAllocationItem.projName }}</div>
+                </div>
+                <div>
+                    <div class="text-sm font-bold text-gray-700 mb-1">{{ $t('inkind_allocation.step_label') }}</div>
+                    <div class="text-sm text-gray-600">{{ $t('inkind_allocation.step_detail', { level: inKindAllocationItem.level, intervention: inKindAllocationItem.intervention }) }}</div>
+                </div>
+                
+                <!-- Divisibility Badge -->
+                <div class="flex justify-center">
+                    <span v-if="inKindAllocationItem.allowPartial" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                        <i class="fas fa-sliders-h mr-1"></i> {{ $t('inkind_allocation.divisible_badge') }}
+                    </span>
+                    <span v-else class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+                        <i class="fas fa-lock mr-1"></i> {{ $t('inkind_allocation.all_or_nothing_badge') }}
+                    </span>
+                </div>
+                
+                <!-- ALL-OR-NOTHING: Read-only summary -->
+                <div v-if="!inKindAllocationItem.allowPartial" class="space-y-4">
+                    <!-- Already Verified Banner (if any) -->
+                    <div v-if="(inKindAllocationItem.laborFunded || 0) > 0 || (inKindAllocationItem.costsFunded || 0) > 0" class="p-3 bg-green-50 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold text-green-700 mb-2"><i class="fas fa-check-circle mr-1"></i> {{ $t('inkind_allocation.already_verified') }}</label>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div class="text-center bg-white p-2 rounded border border-green-200">
+                                <div class="font-bold text-green-600">${{ formatMoney(inKindAllocationItem.laborFunded || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.labor') }}</div>
+                            </div>
+                            <div class="text-center bg-white p-2 rounded border border-green-200">
+                                <div class="font-bold text-green-600">${{ formatMoney(inKindAllocationItem.costsFunded || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.cash_costs') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Labor (Read-only) - shows REMAINING amounts -->
+                    <div class="p-3 bg-green-50 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-hard-hat mr-1"></i> {{ $t('inkind_allocation.labor_to_allocate_fixed') }}</label>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-white rounded p-2 border">
+                                <div class="text-lg font-bold text-green-700">{{ inKindAllocationLabor.people || 0 }}</div>
+                                <div class="text-[10px] text-gray-500 uppercase">{{ $t('inkind_allocation.people') }}</div>
+                            </div>
+                            <div class="bg-white rounded p-2 border">
+                                <div class="text-lg font-bold text-green-700">{{ inKindAllocationLabor.hours || 0 }}</div>
+                                <div class="text-[10px] text-gray-500 uppercase">{{ $t('inkind_allocation.hours') }}</div>
+                            </div>
+                            <div class="bg-white rounded p-2 border">
+                                <div class="text-lg font-bold text-green-700">${{ formatMoney(inKindAllocationLabor.rate || 0) }}</div>
+                                <div class="text-[10px] text-gray-500 uppercase">{{ $t('inkind_allocation.rate') }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-2 bg-white p-2 rounded border border-green-300 text-center">
+                            <span class="text-gray-600 text-xs">{{ $t('inkind_allocation.labor_value') }}</span>
+                            <span class="font-bold text-green-700 ml-2">${{ formatMoney(getInKindAllocationLaborValue()) }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Monetary Costs (Read-only) -->
+                    <div v-if="inKindAllocationItem.cashVal > 0" class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-dollar-sign mr-1"></i> {{ $t('inkind_allocation.monetary_costs_fixed') }}</label>
+                        <div class="space-y-1 text-xs text-gray-600">
+                            <div class="flex justify-between" v-if="(inKindAllocationCosts.assets || 0) > 0">
+                                <span>{{ $t('inkind_allocation.physical_assets') }}</span>
+                                <span class="font-bold">${{ formatMoney(inKindAllocationCosts.assets || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(inKindAllocationCosts.services || 0) > 0">
+                                <span>{{ $t('inkind_allocation.paid_services') }}</span>
+                                <span class="font-bold">${{ formatMoney(inKindAllocationCosts.services || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(inKindAllocationCosts.logistics || 0) > 0">
+                                <span>{{ $t('inkind_allocation.logistics_ops') }}</span>
+                                <span class="font-bold">${{ formatMoney(inKindAllocationCosts.logistics || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(inKindAllocationCosts.support || 0) > 0">
+                                <span>{{ $t('inkind_allocation.direct_support') }}</span>
+                                <span class="font-bold">${{ formatMoney(inKindAllocationCosts.support || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center border-t pt-1 mt-1">
+                                <span class="font-bold text-gray-700">{{ $t('inkind_allocation.total_costs') }}</span>
+                                <span class="font-bold text-red-600">${{ formatMoney(getInKindAllocationCostsTotal()) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DIVISIBLE: Editable sections -->
+                <template v-else>
+                    <!-- Already Verified Banner (if any) -->
+                    <div v-if="(inKindAllocationItem.laborFunded || 0) > 0 || (inKindAllocationItem.costsFunded || 0) > 0" class="p-3 bg-green-50 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold text-green-700 mb-2"><i class="fas fa-check-circle mr-1"></i> {{ $t('inkind_allocation.already_verified') }}</label>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div class="text-center bg-white p-2 rounded border border-green-200">
+                                <div class="font-bold text-green-600">${{ formatMoney(inKindAllocationItem.laborFunded || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.labor') }}</div>
+                            </div>
+                            <div class="text-center bg-white p-2 rounded border border-green-200">
+                                <div class="font-bold text-green-600">${{ formatMoney(inKindAllocationItem.costsFunded || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.cash_costs') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Remaining to Allocate Banner -->
+                    <div class="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                        <label class="block text-sm font-bold text-orange-700 mb-2"><i class="fas fa-hourglass-half mr-1"></i> {{ $t('inkind_allocation.remaining_to_allocate') }}</label>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div class="text-center bg-white p-2 rounded border border-orange-200">
+                                <div class="font-bold text-orange-600">${{ formatMoney(inKindAllocationItem.laborVal || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.labor') }}</div>
+                            </div>
+                            <div class="text-center bg-white p-2 rounded border border-orange-200">
+                                <div class="font-bold text-orange-600">${{ formatMoney(inKindAllocationItem.cashVal || 0) }}</div>
+                                <div class="text-gray-500">{{ $t('inkind_allocation.cash_costs') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Original Breakdown (Read-only reference) -->
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">{{ $t('inkind_allocation.original_budget_ref') }}</label>
+                        <div class="space-y-1 text-xs text-gray-600">
+                            <div class="flex justify-between" v-if="(getOriginalBreakdown(inKindAllocationItem.tierRef).assets || 0) > 0">
+                                <span>{{ $t('inkind_allocation.physical_assets') }}</span>
+                                <span class="font-bold">${{ formatMoney(getOriginalBreakdown(inKindAllocationItem.tierRef).assets || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(getOriginalBreakdown(inKindAllocationItem.tierRef).services || 0) > 0">
+                                <span>{{ $t('inkind_allocation.paid_services') }}</span>
+                                <span class="font-bold">${{ formatMoney(getOriginalBreakdown(inKindAllocationItem.tierRef).services || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(getOriginalBreakdown(inKindAllocationItem.tierRef).logistics || 0) > 0">
+                                <span>{{ $t('inkind_allocation.logistics_ops') }}</span>
+                                <span class="font-bold">${{ formatMoney(getOriginalBreakdown(inKindAllocationItem.tierRef).logistics || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between" v-if="(getOriginalBreakdown(inKindAllocationItem.tierRef).support || 0) > 0">
+                                <span>{{ $t('inkind_allocation.direct_support') }}</span>
+                                <span class="font-bold">${{ formatMoney(getOriginalBreakdown(inKindAllocationItem.tierRef).support || 0) }}</span>
+                            </div>
+                            <div class="flex justify-between items-center border-t pt-1 mt-1">
+                                <span class="font-bold text-gray-700">{{ $t('inkind_allocation.total_budget') }}</span>
+                                <span class="font-bold text-gray-800">${{ formatMoney((getOriginalBreakdown(inKindAllocationItem.tierRef).assets || 0) + (getOriginalBreakdown(inKindAllocationItem.tierRef).services || 0) + (getOriginalBreakdown(inKindAllocationItem.tierRef).logistics || 0) + (getOriginalBreakdown(inKindAllocationItem.tierRef).support || 0)) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Planned Labor (Editable) -->
+                    <div class="p-3 bg-green-50 rounded-lg border border-green-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-hard-hat mr-1"></i> {{ $t('inkind_allocation.planned_labor_editable') }}</label>
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">{{ $t('inkind_allocation.people') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationLabor.people" 
+                                    min="0"
+                                    step="1"
+                                    class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">{{ $t('inkind_allocation.hours') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationLabor.hours" 
+                                    min="0"
+                                    step="0.5"
+                                    class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">{{ $t('inkind_allocation.rate') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationLabor.rate" 
+                                    min="0"
+                                    step="0.01"
+                                    class="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                            </div>
+                        </div>
+                        <div class="bg-white p-2 rounded border border-green-300">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-600">{{ $t('inkind_allocation.labor_value') }}</span>
+                                <span class="font-bold text-green-700">${{ formatMoney(getInKindAllocationLaborValue()) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Monetary Costs Allocation (Editable) -->
+                    <div v-if="inKindAllocationItem.cashVal > 0" class="p-3 bg-white rounded-lg border border-gray-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2"><i class="fas fa-dollar-sign mr-1"></i> {{ $t('inkind_allocation.monetary_costs_editable') }}</label>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <label class="w-32 text-gray-600">{{ $t('inkind_allocation.physical_assets') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationCosts.assets" 
+                                    :min="0" 
+                                    step="0.01"
+                                    class="flex-1 p-2 border rounded text-sm"
+                                    :placeholder="$t('budget_modal.placeholder_zero')">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="w-32 text-gray-600">{{ $t('inkind_allocation.paid_services') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationCosts.services" 
+                                    :min="0" 
+                                    step="0.01"
+                                    class="flex-1 p-2 border rounded text-sm"
+                                    :placeholder="$t('budget_modal.placeholder_zero')">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="w-32 text-gray-600">{{ $t('inkind_allocation.logistics_ops') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationCosts.logistics" 
+                                    :min="0" 
+                                    step="0.01"
+                                    class="flex-1 p-2 border rounded text-sm"
+                                    :placeholder="$t('budget_modal.placeholder_zero')">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="w-32 text-gray-600">{{ $t('inkind_allocation.direct_support') }}</label>
+                                <input 
+                                    type="number" 
+                                    v-model.number="inKindAllocationCosts.support" 
+                                    :min="0" 
+                                    step="0.01"
+                                    class="flex-1 p-2 border rounded text-sm"
+                                    :placeholder="$t('budget_modal.placeholder_zero')">
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-bold text-gray-700">{{ $t('inkind_allocation.total_costs_allocated') }}</span>
+                                    <span class="text-lg font-bold" :class="getInKindAllocationCostsTotal() > inKindAllocationItem.cashVal ? 'text-red-600' : 'text-green-600'">
+                                        ${{ formatMoney(getInKindAllocationCostsTotal()) }}
+                                    </span>
+                                </div>
+                                <div v-if="getInKindAllocationCostsTotal() > inKindAllocationItem.cashVal" class="text-red-600 text-xs font-bold mt-1">
+                                    <i class="fas fa-exclamation-triangle"></i> {{ $t('inkind_allocation.exceeds_budget', { amount: formatMoney(inKindAllocationItem.cashVal) }) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Wallet Selection (only if there are monetary costs to allocate) -->
+                <div v-if="getInKindAllocationCostsTotal() > 0">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">{{ $t('inkind_allocation.select_wallet') }}</label>
+                    <select v-model="inKindAllocationWallet" class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                        <option value="">{{ $t('inkind_allocation.select_wallet_placeholder') }}</option>
+                        <option v-for="wallet in wallets" :key="wallet.id" :value="wallet.id" :disabled="getInKindAllocationCostsTotal() > wallet.balance">
+                            {{ wallet.name }} - ${{ formatMoney(wallet.balance) }} {{ getInKindAllocationCostsTotal() > wallet.balance ? $t('inkind_allocation.insufficient') : '' }}
+                        </option>
+                    </select>
+                    <div v-if="inKindAllocationWallet" class="mt-2 text-xs text-gray-500">
+                        <span v-if="wallets.find(w => w.id === inKindAllocationWallet) && getInKindAllocationCostsTotal() > wallets.find(w => w.id === inKindAllocationWallet).balance" class="text-red-600 font-bold">
+                            <i class="fas fa-exclamation-triangle"></i> {{ $t('inkind_allocation.insufficient_funds') }}
+                        </span>
+                        <span v-else class="text-green-600">
+                            <i class="fas fa-check-circle"></i> {{ $t('inkind_allocation.sufficient_funds') }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="bg-green-50 border border-green-200 rounded p-3 text-xs text-green-700">
+                    <i class="fas fa-info-circle mr-1"></i> {{ $t('inkind_allocation.confirm_info') }}
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-white">
+                <button @click="showInKindAllocationDialog = false; inKindAllocationItem = null; inKindAllocationLabor = { people: 0, hours: 0, rate: 0 }; inKindAllocationCosts = { assets: 0, logistics: 0, support: 0 }; inKindAllocationWallet = null;" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-100 text-sm">{{ $t('common.cancel') }}</button>
+                <button @click="executeInKindAllocation" 
+                        :disabled="(getInKindAllocationCostsTotal() > 0 && !inKindAllocationWallet) || (getInKindAllocationCostsTotal() > 0 && inKindAllocationWallet && wallets.find(w => w.id === inKindAllocationWallet) && getInKindAllocationCostsTotal() > wallets.find(w => w.id === inKindAllocationWallet).balance) || (inKindAllocationItem.allowPartial && inKindAllocationItem.cashVal > 0 && getInKindAllocationCostsTotal() > inKindAllocationItem.cashVal) || !inKindAllocationLabor.people || !inKindAllocationLabor.hours || !inKindAllocationLabor.rate"
+                        class="px-6 py-2 bg-green-600 text-white rounded font-bold shadow-lg text-sm hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
+                    <i class="fas fa-hand-holding-heart mr-1"></i> {{ $t('inkind_allocation.allocate') }}
+                </button>
+            </div>
+        </div>
+    </div>
+    

@@ -1,0 +1,518 @@
+        <div v-else-if="currentView === 'admin'" class="max-w-2xl mx-auto animate-fade-in-up">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">{{ $t('admin.title') }}</h2>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <h3 class="font-bold border-b pb-2 flex justify-between items-center">
+                    <span>{{ $t('theme.title') }}</span>
+                    <div class="flex gap-2">
+                        <button @click="resetThemeToDefault" class="bg-gray-200 text-gray-700 px-3 py-2 rounded font-bold text-xs hover:bg-gray-300 transition">
+                            <i class="fas fa-undo mr-1"></i> {{ $t('theme.reset') }}
+                        </button>
+                        <button @click="saveThemeSettings" class="bg-gray-800 text-white px-4 py-2 rounded font-bold text-xs hover:bg-gray-700 transition">
+                            <i class="fas fa-save mr-1"></i> {{ $t('theme.save') }}
+                        </button>
+                    </div>
+                </h3>
+                
+                <!-- Live Preview -->
+                <div class="border rounded-lg overflow-hidden mb-4">
+                    <div class="p-3 text-white text-sm flex justify-between items-center" :style="{ backgroundColor: settings.theme.headerBg }">
+                        <span class="font-bold"><i class="fas fa-leaf mr-2"></i>{{ $t('theme.preview_header') }}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="px-2 py-1 rounded text-xs" :style="{ backgroundColor: settings.theme.headerHover }">{{ $t('theme.active_tab') }}</span>
+                            <i class="fas fa-cog" :style="{ color: settings.theme.settingsIcon }"></i>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 flex items-center gap-3">
+                        <button class="text-white px-4 py-2 rounded font-bold text-sm" :style="{ backgroundColor: settings.theme.primaryBtn }">
+                            <i class="fas fa-plus mr-1"></i> {{ $t('theme.primary_button') }}
+                        </button>
+                        <span class="text-xs text-gray-500">{{ $t('theme.changes_apply') }}</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.header_bg') }}</label>
+                        <div class="flex gap-2">
+                            <input type="color" v-model="settings.theme.headerBg" class="w-16 h-10 rounded cursor-pointer border-2">
+                            <input type="text" v-model="settings.theme.headerBg" class="flex-1 p-2 border rounded font-mono text-sm uppercase">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.header_hover') }}</label>
+                        <div class="flex gap-2">
+                            <input type="color" v-model="settings.theme.headerHover" class="w-16 h-10 rounded cursor-pointer border-2">
+                            <input type="text" v-model="settings.theme.headerHover" class="flex-1 p-2 border rounded font-mono text-sm uppercase">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.settings_icon') }}</label>
+                        <div class="flex gap-2">
+                            <input type="color" v-model="settings.theme.settingsIcon" class="w-16 h-10 rounded cursor-pointer border-2">
+                            <input type="text" v-model="settings.theme.settingsIcon" class="flex-1 p-2 border rounded font-mono text-sm uppercase">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.primary_buttons') }}</label>
+                        <div class="flex gap-2">
+                            <input type="color" v-model="settings.theme.primaryBtn" class="w-16 h-10 rounded cursor-pointer border-2">
+                            <input type="text" v-model="settings.theme.primaryBtn" class="flex-1 p-2 border rounded font-mono text-sm uppercase">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cost-Type Colors -->
+                <div class="border-t pt-4 mt-4">
+                    <h4 class="text-sm font-bold text-gray-600 mb-3">{{ $t('theme.cost_type_colors') }}</h4>
+                    <!-- Preview -->
+                    <div class="border rounded-lg overflow-hidden mb-4">
+                        <div class="p-3 bg-gray-50 flex items-center gap-4">
+                            <div class="flex-1 text-center p-2 rounded-lg" :style="{ backgroundColor: colorAlpha(settings.theme.colorMonetary, 0.08) }">
+                                <div class="text-[10px] text-gray-400 uppercase">{{ $t('theme.monetary') }}</div>
+                                <div class="font-bold text-sm" :style="{ color: settings.theme.colorMonetary }">$1,250</div>
+                            </div>
+                            <div class="flex-1 text-center p-2 rounded-lg" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.08) }">
+                                <div class="text-[10px] text-gray-400 uppercase">{{ $t('theme.inkind') }}</div>
+                                <div class="font-bold text-sm" :style="{ color: settings.theme.colorInkind }">$800</div>
+                            </div>
+                            <div class="flex-1 text-center p-2 rounded-lg" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.08) }">
+                                <div class="text-[10px] text-gray-400 uppercase">{{ $t('theme.community') }}</div>
+                                <div class="font-bold text-sm" :style="{ color: settings.theme.colorCommunity }">$450</div>
+                            </div>
+                            <div class="flex-1 text-center p-2 rounded-lg" :style="{ backgroundColor: colorAlpha(settings.theme.colorAllocation, 0.08) }">
+                                <div class="text-[10px] text-gray-400 uppercase">{{ $t('theme.allocation') }}</div>
+                                <div class="font-bold text-sm" :style="{ color: settings.theme.colorAllocation }">$2,000</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.monetary') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorMonetary" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorMonetary" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.inkind_labor') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorInkind" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorInkind" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.community_labor') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorCommunity" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorCommunity" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.allocation') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorAllocation" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorAllocation" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project Status Colors -->
+                <div class="border-t pt-4 mt-4">
+                    <h4 class="text-sm font-bold text-gray-600 mb-3">{{ $t('theme.status_colors') }}</h4>
+                    <!-- Preview -->
+                    <div class="border rounded-lg overflow-hidden mb-4">
+                        <div class="p-3 bg-gray-50 space-y-3">
+                            <!-- Row 1: Project value + Progress bar -->
+                            <div class="flex items-center gap-4">
+                                <div class="text-center px-3">
+                                    <div class="text-[10px] text-gray-400 uppercase">{{ $t('theme.project_value') }}</div>
+                                    <div class="font-mono font-bold text-lg" :style="{ color: settings.theme.colorProjectValue }">$3,500</div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-[10px] text-gray-400 uppercase mb-1">{{ $t('theme.progress_bar') }}</div>
+                                    <div class="h-3 bg-gray-200 rounded-full overflow-hidden flex">
+                                        <div class="h-full" :style="{ backgroundColor: settings.theme.colorBarCompleted, width: '50%' }"></div>
+                                        <div class="h-full" :style="{ backgroundColor: settings.theme.colorBarInProgress, width: '25%' }"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[9px] mt-0.5">
+                                        <span :style="{ color: settings.theme.colorBarCompleted }">{{ $t('theme.completed') }}</span>
+                                        <span :style="{ color: settings.theme.colorBarInProgress }">{{ $t('theme.in_progress') }}</span>
+                                        <span class="text-gray-400">{{ $t('theme.backlog') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Row 2: Tier cards -->
+                            <div class="flex gap-3">
+                                <div class="flex-1 rounded-lg p-2 border-2" :style="{ borderColor: settings.theme.colorTierCompleted, backgroundColor: colorAlpha(settings.theme.colorTierCompleted, 0.15) }">
+                                    <div class="text-[10px] font-bold" :style="{ color: settings.theme.colorTierCompleted }">{{ $t('theme.completed_tier') }}</div>
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded text-white inline-block mt-1" :style="{ backgroundColor: settings.theme.colorTierCompleted }">{{ $t('theme.completed') }}</span>
+                                </div>
+                                <div class="flex-1 rounded-lg p-2 border-2" :style="{ borderColor: settings.theme.colorTierInProgress, backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.08) }">
+                                    <div class="text-[10px] font-bold" :style="{ color: settings.theme.colorTierInProgress }">{{ $t('theme.in_progress_tier') }}</div>
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded inline-block mt-1" :style="{ backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.2), color: settings.theme.colorTierInProgress }">{{ $t('theme.in_progress') }}</span>
+                                </div>
+                                <div class="flex-1 rounded-lg p-2 border-2 border-gray-200 bg-gray-50">
+                                    <div class="text-[10px] font-bold text-gray-500">{{ $t('theme.backlog_tier') }}</div>
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-gray-200 text-gray-600 inline-block mt-1">{{ $t('theme.backlog') }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.project_value') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorProjectValue" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorProjectValue" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.bar_completed') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorBarCompleted" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorBarCompleted" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.bar_in_progress') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorBarInProgress" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorBarInProgress" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.tier_completed') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorTierCompleted" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorTierCompleted" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('theme.tier_in_progress') }}</label>
+                            <div class="flex gap-2">
+                                <input type="color" v-model="settings.theme.colorTierInProgress" class="w-10 h-10 rounded cursor-pointer border-2 shrink-0">
+                                <input type="text" v-model="settings.theme.colorTierInProgress" class="min-w-0 flex-1 p-2 border rounded font-mono text-sm uppercase">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-400 italic"><i class="fas fa-info-circle mr-1"></i> {{ $t('theme.persist_message') }}</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <h3 class="font-bold border-b pb-2 flex justify-between items-center">
+                    <span>{{ $t('scholarship_settings.title') }}</span>
+                    <button @click="saveGeneralSettings" class="bg-gray-800 text-white px-4 py-2 rounded font-bold text-xs hover:bg-gray-700 transition">
+                        <i class="fas fa-save mr-1"></i> {{ $t('scholarship_settings.save') }}
+                    </button>
+                </h3>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('scholarship_settings.monthly_rate') }}</label><input type="number" v-model.number="settings.scholarshipRate" class="w-full p-2 border rounded"></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <h3 class="font-bold border-b pb-2 flex justify-between items-center">
+                    <span>{{ $t('risk_model.title') }}</span>
+                    <button @click="showRiskGuideModal = true" class="text-blue-500 hover:text-blue-700 text-xs">{{ $t('risk_model.guide') }}</button>
+                </h3>
+                <p class="text-xs text-gray-500 mb-2">{{ $t('risk_model.description') }}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('risk_model.learned_risk_base') }}</label>
+                        <div class="p-2 border rounded bg-gray-50 text-gray-800 font-mono">{{ (settings.learnedRiskBase ?? 1).toFixed(3) }}</div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">{{ $t('risk_model.completed_steps') }}</label>
+                        <div class="p-2 border rounded bg-gray-50 text-gray-800 font-mono">{{ settings.completedStepsCount ?? 0 }}</div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 italic mb-3"><i class="fas fa-info-circle mr-1"></i> {{ $t('risk_model.reset_info') }}</p>
+                <button v-if="hasPerm('gm.editSettings')" @click="resetRiskModel" class="bg-gray-800 text-white px-4 py-2 rounded font-bold text-xs hover:bg-gray-700 transition">
+                    <i class="fas fa-undo mr-1"></i> {{ $t('risk_model.reset_to_default') }}
+                </button>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <h3 class="font-bold border-b pb-2 flex justify-between items-center">
+                    <span>{{ $t('categories.title') }}</span>
+                    <span class="text-xs text-gray-500 italic">{{ $t('categories.auto_save') }}</span>
+                </h3>
+                <div v-if="hasPerm('gm.editSettings')" class="flex gap-2">
+                    <input v-model="newCategory" class="border p-2 rounded text-sm flex-grow" :placeholder="$t('categories.new_placeholder')">
+                    <button @click="addCategory" class="bg-green-600 text-white px-3 rounded text-sm hover:bg-green-700 transition">
+                        <i class="fas fa-plus mr-1"></i> {{ $t('categories.add') }}
+                    </button>
+                </div>
+                <div v-else class="text-sm text-gray-500 italic">{{ $t('categories.login_required') }}</div>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <template v-for="cat in categories" :key="cat">
+                        <div class="bg-gray-200 px-3 py-1 rounded text-xs flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full shrink-0 border border-gray-400" :style="{ backgroundColor: getCategoryColor(cat) }" :title="$t('categories.color_for', { category: cat })"></span>
+                            {{ getCatName(cat) }}
+                            <template v-if="cat !== 'Scholarship'">
+                                <button 
+                                    v-if="(categoryRecords || []).find(r => r.name === cat)"
+                                    @click="openEditCategory((categoryRecords || []).find(r => r.name === cat))"
+                                    class="text-gray-500 hover:text-gray-700"
+                                    :title="$t('categories.edit_tooltip')"
+                                >
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button 
+                                    @click="removeCategory(cat)" 
+                                    class="text-red-500 hover:text-red-700"
+                                    :title="$t('categories.delete_tooltip')"
+                                >
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </template>
+                            <span v-else class="text-gray-400 text-[10px] italic" :title="$t('categories.protected')">{{ $t('categories.protected') }}</span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Category Replacement Modal -->
+            <div v-if="showCategoryReplaceModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fade-in-up">
+                    <div class="p-4 bg-red-500 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-lg"><i class="fas fa-exclamation-triangle mr-2"></i> {{ $t('categories.replace_title', { category: categoryToDelete }) }}</h3>
+                        <button @click="closeCategoryReplaceModal" class="hover:text-gray-200"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-180px)]">
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <p class="text-sm text-yellow-800">
+                                {{ $t('categories.replace_message', { category: categoryToDelete, count: projectsUsingCategory.length }) }}
+                            </p>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <label class="block text-sm font-bold text-gray-700">
+                                {{ $t('categories.affected_projects', { count: projectsUsingCategory.length }) }}
+                            </label>
+                            <div class="bg-gray-50 rounded border max-h-96 overflow-y-auto p-3 space-y-3">
+                                <div v-for="item in projectsUsingCategory" :key="item.project.id" class="bg-white p-3 rounded border border-gray-200">
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex-1">
+                                            <div class="font-bold text-gray-800 mb-1">{{ item.project.title }}</div>
+                                            <div class="text-xs text-gray-500 mb-2">
+                                                {{ $t('categories.current_category') }}
+                                                <span class="bg-red-100 px-1.5 py-0.5 rounded text-[10px] text-red-700 font-bold">{{ categoryToDelete }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <label class="text-xs font-bold text-gray-600">{{ $t('categories.replacement') }}</label>
+                                                <select 
+                                                    :value="item.replacement" 
+                                                    @change="setProjectReplacement(item.project.id, $event.target.value)"
+                                                    class="text-xs border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                    :class="!item.replacement ? 'border-red-500 bg-red-50' : ''"
+                                                >
+                                                    <option value="">{{ $t('categories.select_replacement') }}</option>
+                                                    <option v-for="rec in (categoryRecords || []).filter(c => c.name !== categoryToDelete && c.name !== 'Scholarship')" :key="rec.id" :value="rec.id">
+                                                        {{ getCatName(rec.name) }}
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <div v-if="!item.replacement" class="text-xs text-red-600 mt-1 font-bold">
+                                                <i class="fas fa-exclamation-triangle"></i> {{ $t('categories.select_replacement_warning') }}
+                                            </div>
+                                            <div v-else class="text-xs text-green-600 mt-1">
+                                                <i class="fas fa-check-circle"></i> {{ $t('categories.will_use', { category: getCatName((categoryRecords || []).find(c => c.id === item.replacement)?.name || item.replacement) }) }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-3 text-xs text-blue-800">
+                            <strong>{{ $t('categories.summary') }}</strong>
+                            <span v-if="projectsUsingCategory.every(i => i.replacement)">{{ $t('categories.all_replacements_selected', { count: projectsUsingCategory.length }) }}</span>
+                            <span v-else>
+                                {{ $t('categories.partial_replacements', { selected: projectsUsingCategory.filter(i => i.replacement).length, total: projectsUsingCategory.length }) }}
+                                <span class="block mt-1 text-red-600 font-bold">⚠️ {{ $t('categories.select_all_warning') }}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
+                        <button @click="closeCategoryReplaceModal" class="px-4 py-2 rounded text-gray-600 font-bold hover:bg-gray-200 transition">{{ $t('common.cancel') }}</button>
+                        <button @click="confirmCategoryReplacement" :disabled="projectsUsingCategory.some(i => !i.replacement)" class="px-6 py-2 rounded font-bold transition disabled:opacity-50 disabled:cursor-not-allowed bg-red-600 text-white hover:bg-red-700 disabled:hover:bg-red-600">
+                            <i class="fas fa-check mr-1"></i> {{ $t('categories.confirm_changes') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Edit Category Modal -->
+            <div v-if="showEditCategoryModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
+                    <h3 class="font-bold text-lg border-b pb-2 mb-4"><i class="fas fa-edit mr-2"></i> {{ $t('categories.edit_title') }}</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">{{ $t('categories.name') }} (EN)</label>
+                            <input v-model="editingCategoryName" class="w-full border rounded px-3 py-2 text-sm" :placeholder="$t('categories.name_placeholder')">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">{{ $t('categories.name') }} (ES)</label>
+                            <input v-model="editingCategoryNameEs" class="w-full border rounded px-3 py-2 text-sm" :placeholder="$t('categories.name_es_placeholder')">
+                            <p class="text-xs text-gray-400 mt-1">{{ $t('categories.name_es_hint') }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">{{ $t('categories.color') }}</label>
+                            <p class="text-xs text-gray-500 mb-2">{{ $t('categories.presets') }}</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <button
+                                    v-for="preset in categoryPresetColors"
+                                    :key="preset.hex"
+                                    type="button"
+                                    @click="editingCategoryColor = preset.hex"
+                                    class="w-10 h-10 rounded border-2 transition shrink-0"
+                                    :class="editingCategoryColor === preset.hex ? 'border-gray-800 ring-2 ring-offset-2 ring-gray-400' : 'border-gray-300 hover:border-gray-500'"
+                                    :style="{ backgroundColor: preset.hex }"
+                                    :title="preset.name"
+                                ></button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs font-bold text-gray-600">{{ $t('categories.custom') }}</label>
+                                <input type="color" v-model="editingCategoryColor" class="h-10 w-14 cursor-pointer rounded border border-gray-300">
+                                <span class="text-xs font-mono text-gray-500">{{ editingCategoryColor || '—' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="showEditCategoryModal = false; editingCategoryId = null; editingCategoryName = ''; editingCategoryNameEs = ''; editingCategoryColor = ''" class="px-4 py-2 rounded text-gray-600 font-bold hover:bg-gray-200 transition">{{ $t('common.cancel') }}</button>
+                        <button @click="saveCategoryEdit" class="px-4 py-2 bg-gray-800 text-white rounded font-bold hover:bg-gray-700 transition">{{ $t('common.save') }}</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <div class="text-center py-4">
+                    <p class="text-sm text-gray-500 italic"><i class="fas fa-info-circle mr-1"></i> {{ $t('users.title') }}: managed in Project Management (PM) Settings</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4 mb-6">
+                <h3 class="font-bold border-b pb-2 flex items-center gap-2">
+                    <i class="fas fa-file-archive text-blue-600"></i> {{ $t('export.title') }}
+                </h3>
+                <p class="text-xs text-gray-600">
+                    {{ $t('export.description') }}
+                </p>
+                <button 
+                    @click="showExportReportModal = true" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm transition flex items-center gap-2">
+                    <i class="fas fa-download"></i> {{ $t('export.download_zip') }}
+                </button>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow space-y-4">
+                <h3 class="font-bold border-b pb-2">{{ $t('database.title') }}</h3>
+                <div class="pt-4 border-t">
+                    <div class="bg-red-50 border-l-4 border-red-400 p-3 mb-3">
+                        <p class="text-xs text-red-800">
+                            <strong>⚠️ {{ $t('database.dev_only') }}</strong> {{ $t('database.dev_warning') }}
+                        </p>
+                    </div>
+                    <button @click="showResetDatabaseModal = true" class="text-red-600 hover:text-red-800 text-sm font-bold hover:underline flex items-center gap-2 mb-3">
+                        <i class="fas fa-trash-alt"></i> {{ $t('database.reset_link') }}
+                    </button>
+                    <button @click="generateTestData" class="text-blue-600 hover:text-blue-800 text-sm font-bold hover:underline flex items-center gap-2">
+                        <i class="fas fa-flask"></i> {{ $t('database.generate_test') }}
+                    </button>
+                </div>
+                <div class="pt-4 border-t mt-4">
+                    <button @click="currentView = 'playground'" class="text-purple-600 hover:text-purple-800 text-sm font-bold hover:underline flex items-center gap-2">
+                        <i class="fas fa-palette"></i> {{ $t('database.design_playground') }}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Reset Database Confirmation Modal -->
+            <div v-if="showResetDatabaseModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[90] p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up">
+                    <div class="p-4 bg-red-500 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-lg"><i class="fas fa-exclamation-triangle mr-2"></i> {{ $t('database.reset_title') }}</h3>
+                        <button @click="showResetDatabaseModal = false; resetConfirmationText = ''" class="hover:text-gray-200"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <p class="text-sm text-red-800 font-bold mb-2">⚠️ {{ $t('database.cannot_be_undone') }}</p>
+                            <p class="text-xs text-red-700">
+                                {{ $t('database.will_delete') }}
+                            </p>
+                            <ul class="text-xs text-red-700 mt-2 list-disc list-inside space-y-1">
+                                <li>{{ $t('database.all_projects') }}</li>
+                                <li>{{ $t('database.all_tiers') }}</li>
+                                <li>{{ $t('database.all_transactions') }}</li>
+                                <li>{{ $t('database.all_wallets') }}</li>
+                            </ul>
+                            <p class="text-xs text-green-700 mt-3 font-bold">
+                                ✓ {{ $t('database.preserved') }}
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                {{ $t('database.type_to_confirm', { keyword: 'RESET' }) }}
+                            </label>
+                            <input 
+                                v-model="resetConfirmationText" 
+                                type="text" 
+                                class="w-full p-2 border-2 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                                :class="resetConfirmationText === 'RESET' ? 'border-green-500 bg-green-50' : 'border-red-300'"
+                                :placeholder="$t('database.type_placeholder')"
+                                @keyup.enter="resetConfirmationText === 'RESET' ? resetDatabase() : null"
+                            >
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-t flex justify-end gap-3">
+                        <button @click="showResetDatabaseModal = false; resetConfirmationText = ''" class="px-4 py-2 rounded text-gray-600 font-bold hover:bg-gray-200 transition">{{ $t('common.cancel') }}</button>
+                        <button 
+                            @click="resetDatabase" 
+                            :disabled="resetConfirmationText !== 'RESET'"
+                            class="px-6 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            <i class="fas fa-trash-alt mr-1"></i> {{ $t('database.reset_button') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Report Modal (date range + progress) -->
+            <div v-if="showExportReportModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[90] p-4 backdrop-blur-sm">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+                    <div class="p-4 bg-blue-600 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-lg"><i class="fas fa-file-archive mr-2"></i> {{ $t('export.modal_title') }}</h3>
+                        <button @click="showExportReportModal = false; exportReportInProgress = false" class="hover:text-gray-200" :disabled="exportReportInProgress"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-xs text-gray-600">{{ $t('export.modal_desc') }}</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">{{ $t('export.from') }}</label>
+                                <input v-model="exportDateFrom" type="date" class="w-full p-2 border rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">{{ $t('export.to') }}</label>
+                                <input v-model="exportDateTo" type="date" class="w-full p-2 border rounded text-sm">
+                            </div>
+                        </div>
+                        <div v-if="exportReportInProgress" class="space-y-2">
+                            <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-600 transition-all duration-300" :style="{ width: exportProgress + '%' }"></div>
+                            </div>
+                            <p class="text-xs font-bold text-gray-600">{{ exportProgressMessage }}</p>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t flex justify-end gap-2 bg-white">
+                        <button @click="showExportReportModal = false; exportReportInProgress = false" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-100 text-sm" :disabled="exportReportInProgress">{{ $t('export.cancel') }}</button>
+                        <button 
+                            @click="exportReport" 
+                            :disabled="exportReportInProgress || !exportDateFrom || !exportDateTo"
+                            class="px-6 py-2 bg-blue-600 text-white rounded font-bold text-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center gap-2">
+                            <i class="fas" :class="exportReportInProgress ? 'fa-spinner fa-spin' : 'fa-download'"></i>
+                            {{ exportReportInProgress ? $t('export.building') : $t('export.build_zip') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DESIGN PLAYGROUND -->

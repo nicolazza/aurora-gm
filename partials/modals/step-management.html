@@ -1,0 +1,644 @@
+    <div v-if="showStepManagementModal && stepMgmtTier" class="fixed inset-0 bg-black/70 flex items-start justify-center z-[90] pt-10 pb-10 px-4 overflow-y-auto backdrop-blur-sm" @click.self="closeStepManagementModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-[66rem] min-h-[80vh] animate-fade-in-up flex flex-col">
+
+            <!-- Header -->
+            <div class="px-6 pt-5 pb-4 border-b border-gray-200 flex items-start justify-between shrink-0">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <svg v-if="stepMgmtTier.status === 'completed'" class="w-5 h-5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <svg v-else-if="stepMgmtTier.status === 'in_progress'" class="w-5 h-5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                        <svg v-else-if="stepMgmtTier.status === 'backlog'" class="w-5 h-5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        {{ $t('steps.step_level', { level: stepMgmtTier.level }) }}
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $t('step_mgmt.in_project', { project: stepMgmtProjectName }) }}</p>
+                </div>
+                <button @click="closeStepManagementModal()" class="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Sidebar + Content -->
+            <div class="flex flex-1 min-h-0">
+                <!-- Sidebar nav -->
+                <nav class="w-44 shrink-0 border-r border-gray-200 bg-gray-50/60 py-2 overflow-y-auto">
+                    <button v-for="tab in [
+                        { key: 'overview', label: $t('step_mgmt.tab_overview'), count: null, icon: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' },
+                        { key: 'gallery', label: $t('step_mgmt.tab_gallery'), count: stepMgmtPhotoCount || null, icon: 'm2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z' },
+                        { key: 'finance', label: $t('step_mgmt.tab_finance'), count: stepMgmtTxCount || null, icon: 'M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z' },
+                        { key: 'donations', label: ($i18n.locale === 'es' ? 'Donaciones' : 'Donations'), count: stepMgmtDonationCount || null, icon: 'M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z' },
+                        { key: 'sales', label: 'Ventas', count: stepMgmtSalesCount || null, icon: 'M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z' },
+                        { key: 'attachments', label: $t('step_mgmt.tab_attachments'), count: stepMgmtAttachmentCount || null, icon: 'M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13' },
+                        ...(stepMgmtTier && stepMgmtTier.status === 'completed' ? [{ key: 'interventions', label: $t('step_mgmt.tab_interventions'), count: stepMgmtInterventionCount || null, icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' }] : []),
+                    ]" :key="tab.key"
+                       @click="(stepMgmtTier.status === 'backlog' && tab.key !== 'overview' && tab.key !== 'gallery') ? null : (stepMgmtActiveTab = tab.key)"
+                       :disabled="stepMgmtTier.status === 'backlog' && tab.key !== 'overview' && tab.key !== 'gallery'"
+                       class="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors"
+                       :class="(stepMgmtTier.status === 'backlog' && tab.key !== 'overview' && tab.key !== 'gallery')
+                           ? 'text-gray-300 cursor-not-allowed'
+                           : stepMgmtActiveTab === tab.key
+                               ? 'text-blue-600 bg-blue-50 font-semibold border-r-2 border-blue-600'
+                               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'"
+                    >
+                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" :d="tab.icon" /></svg>
+                        <span class="truncate">{{ tab.label }}</span>
+                        <span v-if="tab.count !== null" class="text-xs opacity-60 ml-auto shrink-0">({{ tab.count }})</span>
+                    </button>
+                </nav>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0 overflow-y-auto p-6">
+
+                <!-- Loading state -->
+                <div v-if="stepMgmtLoading" class="flex items-center justify-center py-12 text-gray-400 text-sm">
+                    <i class="fas fa-spinner fa-spin text-2xl mr-3"></i> {{ $t('common.loading') }}
+                </div>
+
+                <!-- Error state -->
+                <div v-else-if="stepMgmtError" class="text-center py-12 text-red-500">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>{{ stepMgmtError }}</p>
+                </div>
+
+                <!-- ═══════ OVERVIEW TAB ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'overview'" class="space-y-4">
+                    <!-- Value + Score grid -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Value block -->
+                        <div class="rounded-lg border border-gray-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-gray-100 text-xs font-bold text-gray-700">{{ $t('step_mgmt.overview_value') }}</div>
+                            <div class="p-3">
+                                <!-- Column headers -->
+                                <div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 gap-y-1 text-center items-end">
+                                    <div></div>
+                                    <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_monetary') }}</div>
+                                    <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_inkind') }}</div>
+                                    <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{{ $t('step_mgmt.overview_community') }}</div>
+
+                                    <!-- Planned row -->
+                                    <div class="text-[10px] text-gray-400 font-semibold text-right pr-1">{{ $t('step_mgmt.overview_planned') }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtMonetary > 0 ? (stepMgmtTier._colorMonetary || '#16a34a') : '#d1d5db' }">${{ formatMoney(stepMgmtMonetary) }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtInkind > 0 ? (stepMgmtTier._colorInkind || '#2563eb') : '#d1d5db' }">${{ formatMoney(stepMgmtInkind) }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtCommunity > 0 ? (stepMgmtTier._colorCommunity || '#ea580c') : '#d1d5db' }">${{ formatMoney(stepMgmtCommunity) }}</div>
+
+                                    <!-- Actual row -->
+                                    <div class="text-[10px] text-gray-400 font-semibold text-right pr-1">{{ $t('step_mgmt.overview_actual') }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtActualMonetary > 0 ? (stepMgmtTier._colorMonetary || '#16a34a') : '#d1d5db' }">${{ formatMoney(stepMgmtActualMonetary) }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtActualInkind > 0 ? (stepMgmtTier._colorInkind || '#2563eb') : '#d1d5db' }">${{ formatMoney(stepMgmtActualInkind) }}</div>
+                                    <div class="font-bold text-sm" :style="{ color: stepMgmtActualCommunity > 0 ? (stepMgmtTier._colorCommunity || '#ea580c') : '#d1d5db' }">${{ formatMoney(stepMgmtActualCommunity) }}</div>
+                                </div>
+                                <!-- Totals -->
+                                <div class="flex justify-end gap-4 text-xs font-bold text-gray-600 mt-2 pt-2 border-t border-gray-100">
+                                    <span>{{ $t('step_mgmt.overview_planned') }}: ${{ formatMoney(stepMgmtTierValue) }}</span>
+                                    <span>{{ $t('step_mgmt.overview_actual') }}: ${{ formatMoney(stepMgmtActualMonetary + stepMgmtActualInkind + stepMgmtActualCommunity) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Score block -->
+                        <div class="rounded-lg border border-gray-200 overflow-hidden">
+                            <div class="px-3 py-2 bg-gray-100 text-xs font-bold text-gray-700">{{ $t('step_mgmt.overview_score') }}</div>
+                            <div class="p-3 flex flex-col items-center justify-center" style="min-height: 90px">
+                                <template v-if="stepMgmtScore != null">
+                                    <div class="text-3xl font-bold text-blue-600">{{ Number(stepMgmtScore).toFixed(1) }}</div>
+                                    <div class="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">{{ $t('step_mgmt.overview_impact_score') }}</div>
+                                </template>
+                                <template v-else>
+                                    <div class="text-3xl font-bold text-gray-300">—</div>
+                                    <div class="text-[10px] text-gray-400 mt-1">{{ $t('step_mgmt.overview_not_scored') }}</div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Intervention description -->
+                    <div v-if="stepMgmtTier.intervention">
+                        <div class="flex items-center gap-3 mb-2">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
+                            <h4 class="font-semibold text-gray-800">{{ $t('step_mgmt.overview_intervention') }}</h4>
+                        </div>
+                        <div class="min-h-[40px] bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">{{ stepMgmtTier.intervention }}</div>
+                    </div>
+                </div>
+
+                <!-- ═══════ GALLERY TAB (read-only photo grid with lightbox) ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'gallery'">
+                    <!-- Empty state -->
+                    <div v-if="stepMgmtPhotos.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                        <svg class="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+                        </svg>
+                        <p class="text-sm font-medium">{{ $t('step_mgmt.gallery_empty') }}</p>
+                        <p class="text-xs mt-1">{{ $t('step_mgmt.gallery_empty_hint') }}</p>
+                    </div>
+                    <!-- Photo grid -->
+                    <div v-else class="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-2">
+                        <div v-for="(photo, idx) in stepMgmtPhotos" :key="photo.id" class="relative group cursor-pointer" @click="stepMgmtPhotoViewerIndex = idx">
+                            <img :src="photo.thumbUrl" :alt="$t('step_mgmt.photo_alt', { n: idx + 1 })" class="w-full h-24 object-cover rounded-lg border-2 border-gray-200 group-hover:border-gray-400 transition-colors" @error="$event.target.src = photo.url" />
+                            <!-- Intervention label -->
+                            <span v-if="photo.context === 'intervention'" class="absolute top-1 left-1 bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">{{ $t('step_mgmt.intervention_badge') }}</span>
+                            <!-- Hover overlay -->
+                            <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" /></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ FINANCE TAB ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'finance'" class="space-y-3">
+
+                    <!-- Total Step Value box (planned + actual) -->
+                    <div v-if="stepMgmtTierValue > 0 || (stepMgmtActualMonetary + stepMgmtActualInkind + stepMgmtActualCommunity) > 0"
+                         class="rounded-lg px-4 py-3 flex items-center justify-center gap-6"
+                         :style="{ backgroundColor: (stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8') + '18', border: '1px solid ' + (stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8') + '30' }">
+                        <div class="text-center">
+                            <span class="text-lg font-bold" :style="{ color: stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8' }">${{ formatMoney(stepMgmtTierValue) }}</span>
+                            <div class="text-xs font-semibold mt-0.5" :style="{ color: stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8' }">{{ $t('step_mgmt.overview_planned') }}</div>
+                        </div>
+                        <div class="w-px h-8 bg-gray-300"></div>
+                        <div class="text-center">
+                            <span class="text-lg font-bold" :style="{ color: stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8' }">${{ formatMoney(stepMgmtActualMonetary + stepMgmtActualInkind + stepMgmtActualCommunity) }}</span>
+                            <div class="text-xs font-semibold mt-0.5" :style="{ color: stepMgmtTier._headerBg || settings.theme.headerBg || '#6b21a8' }">{{ $t('step_mgmt.overview_actual') }}</div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ TABLE 1: MONETARY (budget rows with expandable transactions) ═══ -->
+                    <div v-if="stepMgmtBudgetRows.length > 0 || stepMgmtTransactions.length > 0"
+                         class="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-100 border-b border-gray-200">
+                            <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+                            <span class="font-semibold text-gray-700 text-sm">Monetary</span>
+                        </div>
+                        <table class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left px-3 py-2 border-b border-gray-200 font-semibold text-gray-600">Category</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Budget</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Verified</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Available</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template v-for="row in stepMgmtBudgetRows" :key="row.costTypeId">
+                                    <tr :class="getStepMgmtTxForCostType(row.costTypeId).length > 0 ? 'cursor-pointer hover:bg-gray-100/80' : 'hover:bg-white/60'"
+                                        class="border-b border-gray-200/60 transition-colors"
+                                        @click="getStepMgmtTxForCostType(row.costTypeId).length > 0 && toggleStepMgmtBudgetRow(row.costTypeId)">
+                                        <td class="px-3 py-2">
+                                            <span class="flex items-center gap-1.5">
+                                                <svg v-if="getStepMgmtTxForCostType(row.costTypeId).length > 0"
+                                                     class="w-3 h-3 text-gray-400 shrink-0 transition-transform duration-150"
+                                                     :class="stepMgmtExpandedBudget.includes(row.costTypeId) ? 'rotate-90' : ''"
+                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                                <span v-else class="w-3 shrink-0"></span>
+                                                <span class="w-5 h-5 flex items-center justify-center rounded shrink-0"
+                                                      :style="{ backgroundColor: (row.color || '#64748b') + '25', color: row.color || '#64748b' }">
+                                                    <i :class="row.icon || 'fas fa-circle'" class="text-[10px]"></i>
+                                                </span>
+                                                <span class="font-medium text-gray-800">{{ getCostTypeName(row.costTypeName) }}</span>
+                                                <span v-if="getStepMgmtTxForCostType(row.costTypeId).length > 0" class="text-[10px] text-gray-400 ml-0.5">({{ getStepMgmtTxForCostType(row.costTypeId).length }})</span>
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ row.budget > 0 ? '$' + formatMoney(row.budget) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ row.verified > 0 ? '$' + formatMoney(row.verified) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right"
+                                            :class="row.difference > 0 ? 'text-red-600' : row.difference > 0 ? 'text-red-600' : (row.budget - row.verified) > 0 ? 'text-green-600' : 'text-gray-500'">
+                                            {{ (row.budget - row.verified) > 0 ? '' : '-' }}{{ '$' + formatMoney(Math.abs(row.budget - row.verified)) }}
+                                        </td>
+                                    </tr>
+                                    <!-- Expanded transaction sub-rows -->
+                                    <tr v-for="(tx, ti) in (stepMgmtExpandedBudget.includes(row.costTypeId) ? getStepMgmtTxForCostType(row.costTypeId) : [])" :key="'tx-' + ti" class="bg-white/80">
+                                        <td class="pl-10 pr-3 py-1.5">
+                                            <span class="text-gray-400">{{ tx.date }}</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ tx.user }}</span>
+                                            <template v-if="tx.description">
+                                                <span class="text-gray-300 mx-1">·</span>
+                                                <span class="text-gray-400 italic">{{ tx.description.length > 40 ? tx.description.slice(0, 40) + '…' : tx.description }}</span>
+                                            </template>
+                                        </td>
+                                        <td></td>
+                                        <td class="px-3 py-1.5 text-right font-medium whitespace-nowrap"
+                                            :class="tx.type === 'income' ? 'text-green-600' : 'text-red-600'">
+                                            {{ tx.type === 'income' ? '+' : '-' }}${{ formatMoney(Math.abs(tx.amount)) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </template>
+                                <!-- Orphan transactions -->
+                                <template v-if="getStepMgmtOrphanTxs().length > 0">
+                                    <tr class="border-b border-gray-200/60 cursor-pointer hover:bg-gray-100/80 transition-colors"
+                                        @click="toggleStepMgmtBudgetRow('__orphan')">
+                                        <td class="px-3 py-2">
+                                            <span class="flex items-center gap-1.5">
+                                                <svg class="w-3 h-3 text-gray-400 shrink-0 transition-transform duration-150"
+                                                     :class="stepMgmtExpandedBudget.includes('__orphan') ? 'rotate-90' : ''"
+                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                                <span class="w-5 h-5 flex items-center justify-center rounded shrink-0" style="background-color: #9ca3af25; color: #9ca3af">
+                                                    <i class="fas fa-question-circle text-[10px]"></i>
+                                                </span>
+                                                <span class="font-medium text-gray-800">Other</span>
+                                                <span class="text-[10px] text-gray-400 ml-0.5">({{ getStepMgmtOrphanTxs().length }})</span>
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-gray-300">—</td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ '$' + formatMoney(getStepMgmtOrphanTxs().filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0)) }}</td>
+                                        <td class="px-3 py-2 text-right text-red-600">-{{ '$' + formatMoney(getStepMgmtOrphanTxs().filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0)) }}</td>
+                                    </tr>
+                                    <tr v-for="(tx, ti) in (stepMgmtExpandedBudget.includes('__orphan') ? getStepMgmtOrphanTxs() : [])" :key="'orph-' + ti" class="bg-white/80">
+                                        <td class="pl-10 pr-3 py-1.5">
+                                            <span class="text-gray-400">{{ tx.date }}</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ tx.user }}</span>
+                                            <template v-if="tx.description">
+                                                <span class="text-gray-300 mx-1">·</span>
+                                                <span class="text-gray-400 italic">{{ tx.description.length > 40 ? tx.description.slice(0, 40) + '…' : tx.description }}</span>
+                                            </template>
+                                        </td>
+                                        <td></td>
+                                        <td class="px-3 py-1.5 text-right font-medium whitespace-nowrap"
+                                            :class="tx.type === 'income' ? 'text-green-600' : 'text-red-600'">
+                                            {{ tx.type === 'income' ? '+' : '-' }}${{ formatMoney(Math.abs(tx.amount)) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-gray-100 border-t-2 border-gray-300">
+                                    <td class="px-3 py-2 text-gray-600 font-semibold">Monetary total</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ '$' + formatMoney(stepMgmtBudgetRows.reduce((s, r) => s + r.budget, 0)) }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ '$' + formatMoney(stepMgmtBudgetRows.reduce((s, r) => s + r.verified, 0)) }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold"
+                                        :class="(stepMgmtBudgetRows.reduce((s, r) => s + r.budget, 0) - stepMgmtBudgetRows.reduce((s, r) => s + r.verified, 0)) > 0 ? 'text-green-600' : (stepMgmtBudgetRows.reduce((s, r) => s + r.budget, 0) - stepMgmtBudgetRows.reduce((s, r) => s + r.verified, 0)) > 0 ? 'text-green-600' : 'text-gray-500'">
+                                        {{ (stepMgmtBudgetRows.reduce((s, r) => s + r.budget, 0) - stepMgmtBudgetRows.reduce((s, r) => s + r.verified, 0)) > 0 ? '' : '-' }}{{ '$' + formatMoney(Math.abs(stepMgmtBudgetRows.reduce((s, r) => s + r.budget, 0) - stepMgmtBudgetRows.reduce((s, r) => s + r.verified, 0))) }}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- ═══ TABLE 2: LABOR (budget rows with expandable logs) ═══ -->
+                    <div v-if="stepMgmtLabor && (stepMgmtLabor.inkind.planned || stepMgmtLabor.inkind.logged || stepMgmtLabor.community.planned || stepMgmtLabor.community.logged)"
+                         class="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-100 border-b border-gray-200">
+                            <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                            <span class="font-semibold text-gray-700 text-sm">Labor</span>
+                        </div>
+                        <table class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left px-3 py-2 border-b border-gray-200 font-semibold text-gray-600">Category</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Budget</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Verified</th>
+                                    <th class="text-right px-3 py-2 border-b border-gray-200 font-semibold text-gray-600 w-24">Available</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- In-Kind row -->
+                                <template v-if="stepMgmtLabor.inkind.planned || stepMgmtLabor.inkind.logged">
+                                    <tr :class="getStepMgmtLogsByType('inkind').length > 0 ? 'cursor-pointer hover:bg-gray-100/80' : 'hover:bg-white/60'"
+                                        class="border-b border-gray-200/60 transition-colors"
+                                        @click="getStepMgmtLogsByType('inkind').length > 0 && toggleStepMgmtLaborRow('inkind')">
+                                        <td class="px-3 py-2">
+                                            <span class="flex items-center gap-1.5">
+                                                <svg v-if="getStepMgmtLogsByType('inkind').length > 0"
+                                                     class="w-3 h-3 text-gray-400 shrink-0 transition-transform duration-150"
+                                                     :class="stepMgmtExpandedLabor.includes('inkind') ? 'rotate-90' : ''"
+                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                                <span v-else class="w-3 shrink-0"></span>
+                                                <span class="w-5 h-5 flex items-center justify-center rounded shrink-0"
+                                                      :style="{ backgroundColor: stepMgmtLabor.colorInkind + '25', color: stepMgmtLabor.colorInkind }">
+                                                    <i class="fas fa-hard-hat text-[10px]"></i>
+                                                </span>
+                                                <span>
+                                                    <span class="font-medium text-gray-800">{{ $t('step_mgmt.inkind_labor') }}</span>
+                                                    <span v-if="getStepMgmtLogsByType('inkind').length > 0" class="text-[10px] text-gray-400 ml-0.5">({{ getStepMgmtLogsByType('inkind').length }})</span>
+                                                    <span v-if="stepMgmtLabor.inkind.planned" class="block text-[10px] text-gray-400 leading-tight">{{ stepMgmtLabor.inkind.planned.totalHours }}h · {{ '$' + formatMoney(stepMgmtLabor.inkind.planned.rate) }}/hr</span>
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ stepMgmtLabor.inkind.planned ? '$' + formatMoney(stepMgmtLabor.inkind.planned.value) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ stepMgmtLabor.inkind.logged ? '$' + formatMoney(stepMgmtLabor.inkind.logged.totalValue) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right"
+                                            :class="((stepMgmtLabor.inkind.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0)) > 0 ? 'text-green-600' : 0 > ((stepMgmtLabor.inkind.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0)) ? 'text-red-600' : 'text-gray-500'">
+                                            {{ 0 > ((stepMgmtLabor.inkind.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0)) ? '-' : '' }}{{ '$' + formatMoney(Math.abs((stepMgmtLabor.inkind.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0))) }}
+                                        </td>
+                                    </tr>
+                                    <!-- Expanded inkind log sub-rows -->
+                                    <tr v-for="(log, li) in (stepMgmtExpandedLabor.includes('inkind') ? getStepMgmtLogsByType('inkind') : [])" :key="'ik-' + li" class="bg-white/80">
+                                        <td class="pl-10 pr-3 py-1.5 text-right">
+                                            <span class="text-gray-500">{{ log.user }}<span v-if="log.donor" class="text-green-600 ml-1">({{ log.donor }})</span></span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-400">{{ log.date }}</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ log.people }}p</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ log.hours }}h</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-400">${{ formatMoney(log.rate || 0) }}/hr</span>
+                                        </td>
+                                        <td></td>
+                                        <td class="px-3 py-1.5 text-right font-medium whitespace-nowrap" :style="{ color: stepMgmtLabor.colorInkind }">
+                                            {{ '$' + formatMoney(log.people * log.hours * (log.rate || 0)) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </template>
+                                <!-- Community row -->
+                                <template v-if="stepMgmtLabor.community.planned || stepMgmtLabor.community.logged">
+                                    <tr :class="getStepMgmtLogsByType('community').length > 0 ? 'cursor-pointer hover:bg-gray-100/80' : 'hover:bg-white/60'"
+                                        class="border-b border-gray-200/60 transition-colors"
+                                        @click="getStepMgmtLogsByType('community').length > 0 && toggleStepMgmtLaborRow('community')">
+                                        <td class="px-3 py-2">
+                                            <span class="flex items-center gap-1.5">
+                                                <svg v-if="getStepMgmtLogsByType('community').length > 0"
+                                                     class="w-3 h-3 text-gray-400 shrink-0 transition-transform duration-150"
+                                                     :class="stepMgmtExpandedLabor.includes('community') ? 'rotate-90' : ''"
+                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                                                <span v-else class="w-3 shrink-0"></span>
+                                                <span class="w-5 h-5 flex items-center justify-center rounded shrink-0"
+                                                      :style="{ backgroundColor: stepMgmtLabor.colorCommunity + '25', color: stepMgmtLabor.colorCommunity }">
+                                                    <i class="fas fa-users text-[10px]"></i>
+                                                </span>
+                                                <span>
+                                                    <span class="font-medium text-gray-800">{{ $t('step_mgmt.community_labor') }}</span>
+                                                    <span v-if="getStepMgmtLogsByType('community').length > 0" class="text-[10px] text-gray-400 ml-0.5">({{ getStepMgmtLogsByType('community').length }})</span>
+                                                    <span v-if="stepMgmtLabor.community.planned" class="block text-[10px] text-gray-400 leading-tight">{{ stepMgmtLabor.community.planned.totalHours }}h · {{ '$' + formatMoney(stepMgmtLabor.community.planned.rate) }}/hr</span>
+                                                </span>
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ stepMgmtLabor.community.planned ? '$' + formatMoney(stepMgmtLabor.community.planned.value) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right text-gray-600">{{ stepMgmtLabor.community.logged ? '$' + formatMoney(stepMgmtLabor.community.logged.totalValue) : '—' }}</td>
+                                        <td class="px-3 py-2 text-right"
+                                            :class="((stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) > 0 ? 'text-green-600' : 0 > ((stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) ? 'text-red-600' : 'text-gray-500'">
+                                            {{ 0 > ((stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) ? '-' : '' }}{{ '$' + formatMoney(Math.abs((stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.community.logged?.totalValue || 0))) }}
+                                        </td>
+                                    </tr>
+                                    <!-- Expanded community log sub-rows -->
+                                    <tr v-for="(log, li) in (stepMgmtExpandedLabor.includes('community') ? getStepMgmtLogsByType('community') : [])" :key="'cm-' + li" class="bg-white/80">
+                                        <td class="pl-10 pr-3 py-1.5 text-right">
+                                            <span class="text-gray-500">{{ log.user }}<span v-if="log.donor" class="text-green-600 ml-1">({{ log.donor }})</span></span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-400">{{ log.date }}</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ log.people }}p</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-500">{{ log.hours }}h</span>
+                                            <span class="text-gray-300 mx-1">·</span>
+                                            <span class="text-gray-400">${{ formatMoney(log.rate || 0) }}/hr</span>
+                                        </td>
+                                        <td></td>
+                                        <td class="px-3 py-1.5 text-right font-medium whitespace-nowrap" :style="{ color: stepMgmtLabor.colorCommunity }">
+                                            {{ '$' + formatMoney(log.people * log.hours * (log.rate || 0)) }}
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-gray-100 border-t-2 border-gray-300">
+                                    <td class="px-3 py-2 text-gray-600 font-semibold">Labor total</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ (stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0) > 0 ? '$' + formatMoney((stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0)) : '—' }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold">{{ (stepMgmtLabor.inkind.logged?.totalValue || 0) + (stepMgmtLabor.community.logged?.totalValue || 0) > 0 ? '$' + formatMoney((stepMgmtLabor.inkind.logged?.totalValue || 0) + (stepMgmtLabor.community.logged?.totalValue || 0)) : '—' }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold"
+                                        :class="((stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) > 0 ? 'text-green-600' : 0 > ((stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) ? 'text-red-600' : 'text-gray-500'">
+                                        {{ 0 > ((stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0) - (stepMgmtLabor.community.logged?.totalValue || 0)) ? '-' : '' }}{{ '$' + formatMoney(Math.abs((stepMgmtLabor.inkind.planned?.value || 0) + (stepMgmtLabor.community.planned?.value || 0) - (stepMgmtLabor.inkind.logged?.totalValue || 0) - (stepMgmtLabor.community.logged?.totalValue || 0))) }}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- ═══ TABLE 3: All Transactions (monetary + labor, flat list) ═══ -->
+                    <div v-if="stepMgmtTransactions.length > 0 || stepMgmtLaborLogs.length > 0"
+                         class="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
+                        <button type="button" @click="stepMgmtAllTxExpanded = !stepMgmtAllTxExpanded"
+                                class="w-full flex items-center gap-2 px-3 py-2.5 bg-gray-100 border-b border-gray-200 hover:bg-gray-200 transition-colors">
+                            <svg class="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                            <span class="font-semibold text-gray-700 text-sm">All Transactions</span>
+                            <span class="text-xs text-gray-400 font-normal">({{ stepMgmtTransactions.length + stepMgmtLaborLogs.length }})</span>
+                            <svg class="w-3.5 h-3.5 text-gray-400 ml-auto shrink-0 transition-transform duration-150" :class="stepMgmtAllTxExpanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </button>
+                        <table v-if="stepMgmtAllTxExpanded" class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left px-2 py-2 border-b border-gray-200 font-semibold text-gray-600 w-[70px]">Date</th>
+                                    <th class="text-left px-2 py-2 border-b border-gray-200 font-semibold text-gray-600 w-[60px]">User</th>
+                                    <th class="text-left px-2 py-2 border-b border-gray-200 font-semibold text-gray-600">Category</th>
+                                    <th class="text-left px-2 py-2 border-b border-gray-200 font-semibold text-gray-600">Details</th>
+                                    <th class="text-right px-2 py-2 border-b border-gray-200 font-semibold text-gray-600 w-20">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="e in getAllStepMgmtEntries()" :key="e.id" class="border-b border-gray-200/60 hover:bg-white/60 transition-colors">
+                                    <td class="px-2 py-2 text-gray-500 whitespace-nowrap text-[10px]">{{ e.date }}</td>
+                                    <td class="px-2 py-2 text-gray-500 text-[10px] leading-tight w-[60px]">{{ e.user || '—' }}</td>
+                                    <td class="px-2 py-2">
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <span class="w-4 h-4 flex items-center justify-center rounded shrink-0" :style="{ backgroundColor: e.categoryColor + '25', color: e.categoryColor }">
+                                                <i :class="e.categoryIcon" class="text-[8px]"></i>
+                                            </span>
+                                            <span class="font-medium text-gray-700">{{ e.category }}</span>
+                                        </span>
+                                    </td>
+                                    <td class="px-2 py-2 text-gray-400">{{ e.details }}<span v-if="e.donor" class="text-green-600 block text-[9px]">{{ e.donor }}</span></td>
+                                    <td class="px-2 py-2 text-right font-medium whitespace-nowrap" :class="e.kind === 'monetary' && e.type === 'income' ? 'text-green-600' : e.kind === 'monetary' ? 'text-red-600' : 'text-gray-700'">
+                                        {{ e.kind === 'monetary' ? (e.type === 'income' ? '+' : '-') + '$' + formatMoney(Math.abs(e.amount)) : '$' + formatMoney(e.amount) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div v-if="stepMgmtBudgetRows.length === 0 && stepMgmtTransactions.length === 0 && !(stepMgmtLabor && (stepMgmtLabor.inkind.planned || stepMgmtLabor.inkind.logged || stepMgmtLabor.community.planned || stepMgmtLabor.community.logged))"
+                         class="text-center py-6 text-gray-400 text-sm">No budget data or transactions</div>
+                </div>
+
+                <!-- ═══════ DONATIONS TAB ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'donations'">
+                    <div v-if="stepMgmtDonations.length === 0" class="text-center py-12 text-gray-400">
+                        <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                        <p class="text-sm">{{ $i18n.locale === 'es' ? 'No hay donaciones registradas para este paso' : 'No donations recorded for this step' }}</p>
+                    </div>
+                    <div v-else>
+                        <div v-if="stepMgmtDonationTotal > 0" class="rounded-lg px-4 py-3 mb-4 flex items-center justify-center gap-4 bg-pink-50 border border-pink-200">
+                            <span class="text-lg font-bold text-pink-600">${{ formatMoney(stepMgmtDonationTotal) }}</span>
+                            <span class="text-xs text-pink-500 font-semibold uppercase tracking-wide">{{ $i18n.locale === 'es' ? 'Total donado' : 'Total Donated' }} ({{ stepMgmtDonations.length }})</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div v-for="don in stepMgmtDonations" :key="don.id" class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100">
+                                <div class="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                    {{ (don.donorName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() }}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-semibold text-gray-800">{{ don.donorName || '—' }}</div>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 capitalize">{{ (don.type || '').replace(/_/g, ' ') }}</span>
+                                        <span v-if="don.isEstimate" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600">{{ $i18n.locale === 'es' ? 'Estimado' : 'Estimate' }}</span>
+                                    </div>
+                                    <div v-if="don.description" class="text-xs text-gray-500 mt-0.5 truncate">{{ don.description }}</div>
+                                </div>
+                                <div class="text-sm font-bold text-pink-600 shrink-0">${{ formatMoney(don.value || 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ SALES TAB ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'sales'">
+                    <div v-if="stepMgmtSalesTransactions.length === 0" class="text-center py-12 text-gray-400">
+                        <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+                        <p class="text-sm">{{ $i18n.locale === 'es' ? 'Sin ventas registradas. Vincule ingresos desde FM.' : 'No sales recorded. Link income from FM.' }}</p>
+                    </div>
+                    <div v-else>
+                        <div class="rounded-lg border border-gray-200 overflow-hidden">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+                                    <tr>
+                                        <th class="p-3">{{ $i18n.locale === 'es' ? 'Fecha' : 'Date' }}</th>
+                                        <th class="p-3">{{ $i18n.locale === 'es' ? 'Usuario' : 'User' }}</th>
+                                        <th class="p-3">{{ $i18n.locale === 'es' ? 'Categoría' : 'Category' }}</th>
+                                        <th class="p-3">{{ $i18n.locale === 'es' ? 'Descripción' : 'Description' }}</th>
+                                        <th class="p-3 text-right">{{ $i18n.locale === 'es' ? 'Monto' : 'Amount' }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="tx in stepMgmtSalesTransactions" :key="tx.id" class="hover:bg-gray-50 transition">
+                                        <td class="p-3 text-gray-500 whitespace-nowrap">{{ tx.date }}</td>
+                                        <td class="p-3 text-gray-600 text-xs">{{ tx.user }}</td>
+                                        <td class="p-3">
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <i :class="tx.categoryIcon" :style="{ color: tx.categoryColor }"></i>
+                                                <span class="text-xs text-gray-600">{{ tx.category }}</span>
+                                            </span>
+                                        </td>
+                                        <td class="p-3 text-gray-600 text-xs max-w-[200px] truncate">{{ tx.description || '—' }}</td>
+                                        <td class="p-3 text-right font-bold text-green-600">+${{ formatMoney(tx.amount) }}</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="bg-gray-50 border-t border-gray-200">
+                                    <tr>
+                                        <td colspan="4" class="p-3 text-sm font-bold text-gray-700 text-right">Total</td>
+                                        <td class="p-3 text-right font-bold text-green-600">${{ formatMoney(stepMgmtSalesTotal) }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div v-if="stepMgmtSalesNotes" class="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-3">
+                            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">{{ $i18n.locale === 'es' ? 'Notas de ventas' : 'Sales Notes' }}</div>
+                            <div class="text-sm text-gray-600 whitespace-pre-wrap">{{ stepMgmtSalesNotes }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ INTERVENTIONS TAB (Read-Only) ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'interventions'">
+                    <!-- Not completed → only for completed steps -->
+                    <div v-if="stepMgmtTier?.status !== 'completed'" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                        <svg class="w-10 h-10 mb-3 text-gray-300" fill="none" viewBox="0 0 448 512" stroke="currentColor" stroke-width="0"><path fill="currentColor" d="M128 0c13.3 0 24 10.7 24 24l0 40 144 0 0-40c0-13.3 10.7-24 24-24s24 10.7 24 24l0 40 40 0c35.3 0 64 28.7 64 64l0 16 0 48 0 256c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 192l0-48 0-16C0 92.7 28.7 64 64 64l40 0 0-40c0-13.3 10.7-24 24-24zM400 192L48 192l0 256c0 8.8 7.2 16 16 16l320 0c8.8 0 16-7.2 16-16l0-256zM329 305c9.4 9.4 9.4 24.6 0 33.9l-80 80c-9.4 9.4-24.6 9.4-33.9 0l-48-48c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0L232 368l63-63c9.4-9.4 24.6-9.4 33.9 0z" /></svg>
+                        <p class="text-sm font-medium">{{ $t('step_mgmt.only_completed') }}</p>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div v-else-if="stepMgmtInterventions.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
+                        <svg class="w-10 h-10 mb-2 text-gray-300" fill="none" viewBox="0 0 448 512" stroke="currentColor" stroke-width="0"><path fill="currentColor" d="M128 0c13.3 0 24 10.7 24 24l0 40 144 0 0-40c0-13.3 10.7-24 24-24s24 10.7 24 24l0 40 40 0c35.3 0 64 28.7 64 64l0 16 0 48 0 256c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 192l0-48 0-16C0 92.7 28.7 64 64 64l40 0 0-40c0-13.3 10.7-24 24-24zM400 192L48 192l0 256c0 8.8 7.2 16 16 16l320 0c8.8 0 16-7.2 16-16l0-256zM329 305c9.4 9.4 9.4 24.6 0 33.9l-80 80c-9.4 9.4-24.6 9.4-33.9 0l-48-48c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0L232 368l63-63c9.4-9.4 24.6-9.4 33.9 0z" /></svg>
+                        <p class="text-sm">{{ $t('step_mgmt.interventions_empty') }}</p>
+                        <p class="text-xs mt-1">{{ $t('step_mgmt.interventions_empty_hint') }}</p>
+                    </div>
+
+                    <!-- Intervention list -->
+                    <div v-else class="divide-y divide-gray-100">
+                        <div v-for="iv in stepMgmtInterventions" :key="iv.id" class="py-4 first:pt-0">
+                            <!-- Header: date + author -->
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                                    {{ iv.date ? new Date(iv.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '' }}
+                                </span>
+                                <span class="flex items-center gap-1.5 text-xs text-gray-400">
+                                    <img v-if="iv.userAvatar" :src="iv.userAvatar" class="w-4 h-4 rounded-full object-cover" />
+                                    <span v-else class="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center text-white text-[8px] font-bold">{{ (iv.userName || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() }}</span>
+                                    {{ iv.userName }}
+                                </span>
+                            </div>
+                            <!-- Description -->
+                            <div class="text-sm text-gray-600 prose prose-sm max-w-none" v-html="sanitize(iv.description)"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════ ATTACHMENTS TAB (read-only file list) ═══════ -->
+                <div v-else-if="stepMgmtActiveTab === 'attachments'">
+                    <!-- Empty state -->
+                    <div v-if="stepMgmtAttachments.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-400">
+                        <svg class="w-12 h-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                        </svg>
+                        <p class="text-sm font-medium">{{ $t('step_mgmt.attachments_empty') }}</p>
+                        <p class="text-xs mt-1">{{ $t('step_mgmt.attachments_empty_hint') }}</p>
+                    </div>
+                    <!-- Attachment list -->
+                    <div v-else class="space-y-1.5 pt-2">
+                        <a v-for="att in stepMgmtAttachments" :key="att.id"
+                           :href="att.url" target="_blank" rel="noopener noreferrer"
+                           class="flex items-center gap-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 hover:bg-gray-100 transition-colors no-underline">
+                            <!-- Image thumbnail or file icon -->
+                            <img v-if="att.isImage" :src="att.url + '?thumb=80x80'" :alt="att.name"
+                                 class="w-8 h-8 rounded object-cover border border-gray-200 shrink-0"
+                                 @error="$event.target.src = att.url" />
+                            <svg v-else class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            <span class="flex-1 text-sm text-gray-700 truncate">{{ att.name }}</span>
+                            <!-- Download icon -->
+                            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ GALLERY LIGHTBOX (teleported to body, outside modal to avoid z-index & v-if chain issues) ═══════ -->
+    <teleport to="body">
+        <div v-if="stepMgmtPhotoViewerIndex !== null && stepMgmtPhotos[stepMgmtPhotoViewerIndex]"
+             class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center backdrop-blur-sm"
+             @click.self="stepMgmtPhotoViewerIndex = null">
+            <!-- Close -->
+            <button class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl z-10" @click="stepMgmtPhotoViewerIndex = null">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <!-- Counter -->
+            <div class="absolute top-4 left-4 text-white/70 text-sm font-medium">{{ stepMgmtPhotoViewerIndex + 1 }} / {{ stepMgmtPhotos.length }}</div>
+            <!-- Previous -->
+            <button v-if="stepMgmtPhotos.length > 1" class="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-3 transition z-10"
+                    @click.stop="stepMgmtPhotoViewerIndex = (stepMgmtPhotoViewerIndex - 1 + stepMgmtPhotos.length) % stepMgmtPhotos.length">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+            </button>
+            <!-- Main image -->
+            <img :src="stepMgmtPhotos[stepMgmtPhotoViewerIndex].url"
+                 :alt="$t('step_mgmt.photo_alt', { n: stepMgmtPhotoViewerIndex + 1 })"
+                 class="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                 @click.stop />
+            <!-- Next -->
+            <button v-if="stepMgmtPhotos.length > 1" class="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-3 transition z-10"
+                    @click.stop="stepMgmtPhotoViewerIndex = (stepMgmtPhotoViewerIndex + 1) % stepMgmtPhotos.length">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            </button>
+            <!-- Thumbnail strip -->
+            <div v-if="stepMgmtPhotos.length > 1" class="absolute bottom-4 left-0 right-0 px-4">
+                <div class="flex gap-2 justify-center overflow-x-auto pb-2">
+                    <img v-for="(photo, idx) in stepMgmtPhotos" :key="photo.id"
+                         :src="photo.thumbUrl" :alt="$t('step_mgmt.photo_alt', { n: idx + 1 })"
+                         class="w-14 h-14 object-cover rounded cursor-pointer border-2 shrink-0 transition"
+                         :class="idx === stepMgmtPhotoViewerIndex ? 'border-blue-500' : 'border-transparent hover:border-gray-400'"
+                         @click.stop="stepMgmtPhotoViewerIndex = idx"
+                         @error="$event.target.src = photo.url" />
+                </div>
+            </div>
+        </div>
+    </teleport>
+

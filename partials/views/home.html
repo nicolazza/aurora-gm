@@ -1,0 +1,467 @@
+        <div v-if="currentView === 'home'" class="animate-fade-in-up pb-20">
+            <!-- Hero + Stats wrapper with pixel art -->
+            <div class="pixel-scene">
+                <canvas id="pixel-forest" class="absolute inset-0 w-full h-full pointer-events-none hidden md:block" style="opacity:0.35;z-index:1;"></canvas>
+
+                <!-- Hero -->
+                <div class="text-center py-16 md:py-20 max-w-6xl mx-auto px-4 relative z-10">
+                    <h1 id="hero-title" class="text-4xl md:text-5xl font-extrabold text-gray-600 tracking-tight mb-4" style="text-shadow:0 1px 3px rgba(0,0,0,0.12);transition:color .6s">{{ $t('home.hero_title') }}</h1>
+                    <p id="hero-subtitle" class="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed mb-6" style="text-shadow:0 1px 2px rgba(0,0,0,0.08);transition:color .6s">{{ $t('home.hero_subtitle') }}</p>
+                </div>
+
+            </div>
+            <div id="pixel-forest-fade" class="hidden md:block w-full relative" style="height:400px;pointer-events:none;background:rgba(53,128,26,0.80);">
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="flex gap-40 text-white text-center">
+                        <div>
+                            <div class="text-7xl font-extrabold" style="min-width:80px;min-height:72px;">
+                                <svg v-if="!heroNumbersReady" class="w-10 h-10 mx-auto animate-spin text-white/40" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                <template v-else>{{ heroAnimProjects }}</template>
+                            </div>
+                            <div class="text-base font-bold uppercase tracking-widest mt-3 text-white/70">{{ $t('home.stat_projects') }}</div>
+                        </div>
+                        <div>
+                            <div class="text-7xl font-extrabold" style="min-width:160px;min-height:72px;">
+                                <svg v-if="!heroNumbersReady" class="w-10 h-10 mx-auto animate-spin text-white/40" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                <template v-else>${{ heroAnimDonated }}</template>
+                            </div>
+                            <div class="text-base font-bold uppercase tracking-widest mt-3 text-white/70">{{ $t('home.stat_donated') }}, {{ $t('home.since_date') }}</div>
+                        </div>
+                        <div>
+                            <div class="text-7xl font-extrabold" style="min-width:100px;min-height:72px;">
+                                <svg v-if="!heroNumbersReady" class="w-10 h-10 mx-auto animate-spin text-white/40" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                <template v-else>{{ heroAnimHours }}h</template>
+                            </div>
+                            <div class="text-base font-bold uppercase tracking-widest mt-3 text-white/70">{{ $t('home.stat_community_labor') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category carousel (temporarily hidden) -->
+            <div class="mb-16 pt-28 pb-12 overflow-hidden relative" style="display:none">
+                <div class="category-carousel-track flex gap-8" style="width:max-content;">
+                    <template v-for="cat in homeCategoryStats" :key="'c1-'+cat.name">
+                        <div class="flex-shrink-0 w-72 bg-white rounded-xl border border-gray-100 shadow-sm p-7 text-center" :style="{ borderBottom: '3px solid ' + getCategoryColor(cat.name) }">
+                            <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl text-white" :style="{ backgroundColor: getCategoryColor(cat.name) }">
+                                <i :class="cat.icon"></i>
+                            </div>
+                            <h3 class="font-extrabold text-gray-800 text-xl mb-3">{{ cat.name }}</h3>
+                            <div class="text-3xl font-extrabold text-gray-800">{{ cat.projectCount }}</div>
+                            <div class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Projects</div>
+                            <div class="text-xl font-bold" :style="{ color: getCategoryColor(cat.name) }">${{ formatMoney(cat.value) }}</div>
+                            <div class="text-xs font-bold uppercase tracking-wide text-gray-400">Value</div>
+                        </div>
+                    </template>
+                    <template v-for="cat in homeCategoryStats" :key="'c2-'+cat.name">
+                        <div class="flex-shrink-0 w-72 bg-white rounded-xl border border-gray-100 shadow-sm p-7 text-center" :style="{ borderBottom: '3px solid ' + getCategoryColor(cat.name) }">
+                            <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-2xl text-white" :style="{ backgroundColor: getCategoryColor(cat.name) }">
+                                <i :class="cat.icon"></i>
+                            </div>
+                            <h3 class="font-extrabold text-gray-800 text-xl mb-3">{{ cat.name }}</h3>
+                            <div class="text-3xl font-extrabold text-gray-800">{{ cat.projectCount }}</div>
+                            <div class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Projects</div>
+                            <div class="text-xl font-bold" :style="{ color: getCategoryColor(cat.name) }">${{ formatMoney(cat.value) }}</div>
+                            <div class="text-xs font-bold uppercase tracking-wide text-gray-400">Value</div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="h-16"></div>
+
+            <!-- ═══ SECTION 1: What We Do ═══ -->
+            <div class="border-b border-gray-100 transition-all duration-300" :class="{ 'opacity-30': !homeSection1Open && (homeSection2Open || homeSection3Open || homeSection4Open), 'scale-[1.01] shadow-md': homeSectionHover === 1 }" @mouseenter="homeSectionHover = 1" @mouseleave="homeSectionHover = null">
+                <div class="py-16 px-4 cursor-pointer select-none bg-gray-50/50" @click="homeSection1Open = !homeSection1Open">
+                    <div class="max-w-6xl mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <div class="w-20 h-20 rounded-2xl bg-emerald-50 flex items-center justify-center text-5xl text-emerald-600 flex-shrink-0"><i class="fas fa-seedling"></i></div>
+                            <div>
+                                <h2 class="text-3xl font-extrabold text-gray-800">{{ $t('home.how_title') }}</h2>
+                                <p class="text-sm text-gray-400 mt-2 max-w-2xl">{{ $t('home.section1_desc') }}</p>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300" :class="{ 'rotate-180': homeSection1Open }">
+                            <i class="fas fa-chevron-down text-gray-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+                <transition name="slide-section"><div v-if="homeSection1Open" class="pb-12 px-4 bg-gray-50/50">
+                    <div style="width:55%" class="mx-auto">
+                                    <div class="space-y-5">
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl text-white flex-shrink-0 mt-1" :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorMonetary + ', ' + settings.theme.colorInkind + ')' }"><i class="fas fa-layer-group"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <h4 class="font-bold text-gray-800 text-base mb-1">{{ $t('home.how_steps_title') }}</h4>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.overview_steps_long') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl text-white flex-shrink-0 mt-1" :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorInkind + ', ' + settings.theme.colorCommunity + ')' }"><i class="fas fa-calculator"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <h4 class="font-bold text-gray-800 text-base mb-1">{{ $t('home.how_scoring_title') }}</h4>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.overview_scoring_long') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl text-white flex-shrink-0 mt-1" :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorCommunity + ', ' + settings.theme.colorMonetary + ')' }"><i class="fas fa-check-double"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <h4 class="font-bold text-gray-800 text-base mb-1">{{ $t('home.how_verification_title') }}</h4>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.overview_verification_long') }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                    </div>
+                </div></transition>
+            </div>
+
+            <!-- ═══ SECTION 2: The Algorithm ═══ -->
+            <div class="border-b border-gray-100 transition-all duration-300" :class="{ 'opacity-30': !homeSection2Open && (homeSection1Open || homeSection3Open || homeSection4Open), 'scale-[1.01] shadow-md': homeSectionHover === 2 }" @mouseenter="homeSectionHover = 2" @mouseleave="homeSectionHover = null">
+                <div class="py-16 px-4 cursor-pointer select-none bg-gray-50/50" @click="homeSection2Open = !homeSection2Open">
+                    <div class="max-w-6xl mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <div class="w-20 h-20 rounded-2xl bg-amber-50 flex items-center justify-center text-5xl text-amber-600 flex-shrink-0"><i class="fas fa-calculator"></i></div>
+                            <div>
+                                <h2 class="text-3xl font-extrabold text-gray-800">{{ $t('home.algo_title') }}</h2>
+                                <p class="text-sm text-gray-400 mt-2 max-w-2xl">{{ $t('home.section2_desc') }}</p>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300" :class="{ 'rotate-180': homeSection2Open }">
+                            <i class="fas fa-chevron-down text-gray-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+                <transition name="slide-section"><div v-if="homeSection2Open" class="pb-12 px-4 bg-gray-50/50">
+                    <div style="width:55%" class="mx-auto">
+                                    <!-- Formula -->
+                                    <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-6">
+                                        <h4 class="font-bold text-gray-800 text-base mb-3">{{ $t('home.algo_formula_title') }}</h4>
+                                        <div class="bg-gray-50 rounded-lg px-5 py-4 font-mono text-sm text-gray-700 mb-4 inline-block">
+                                            Score = (Impact / Cost) &times; Multipliers &times; 100
+                                        </div>
+                                        <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.algo_formula_desc') }}</p>
+                                    </div>
+
+                                    <!-- Impact -->
+                                    <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-6">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base"><i class="fas fa-bullseye"></i></div>
+                                            <h4 class="font-bold text-gray-800 text-base">{{ $t('home.algo_impact_title') }}</h4>
+                                        </div>
+                                        <div class="bg-gray-50 rounded-lg px-5 py-3 font-mono text-sm text-gray-700 mb-3 inline-block">Impact = Urgency &times; Breadth &times; Depth</div>
+                                        <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.algo_impact_desc') }}</p>
+                                    </div>
+
+                                    <!-- Real Cost -->
+                                    <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-6">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base"><i class="fas fa-dollar-sign"></i></div>
+                                            <h4 class="font-bold text-gray-800 text-base">{{ $t('home.algo_cost_title') }}</h4>
+                                        </div>
+                                        <div class="bg-gray-50 rounded-lg px-5 py-3 font-mono text-sm text-gray-700 mb-3 inline-block">Cost = Base Cost &times; Risk</div>
+                                        <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.algo_cost_desc') }}</p>
+                                    </div>
+
+                                    <!-- Multipliers -->
+                                    <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-6">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <div class="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-base"><i class="fas fa-sliders-h"></i></div>
+                                            <h4 class="font-bold text-gray-800 text-base">{{ $t('home.algo_multipliers_title') }}</h4>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div class="flex gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-rocket"></i></div>
+                                                <div>
+                                                    <span class="font-semibold text-gray-700 text-sm">{{ $t('home.algo_m_momentum_label') }}</span>
+                                                    <p class="text-xs text-gray-400 leading-relaxed mt-0.5">{{ $t('home.algo_m_momentum_desc') }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-eye-slash"></i></div>
+                                                <div>
+                                                    <span class="font-semibold text-gray-700 text-sm">{{ $t('home.algo_m_neglect_label') }}</span>
+                                                    <p class="text-xs text-gray-400 leading-relaxed mt-0.5">{{ $t('home.algo_m_neglect_desc') }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-shield-alt"></i></div>
+                                                <div>
+                                                    <span class="font-semibold text-gray-700 text-sm">{{ $t('home.algo_m_confidence_label') }}</span>
+                                                    <p class="text-xs text-gray-400 leading-relaxed mt-0.5">{{ $t('home.algo_m_confidence_desc') }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="flex gap-3">
+                                                <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-exclamation-triangle"></i></div>
+                                                <div>
+                                                    <span class="font-semibold text-gray-700 text-sm">{{ $t('home.algo_m_emergency_label') }}</span>
+                                                    <p class="text-xs text-gray-400 leading-relaxed mt-0.5">{{ $t('home.algo_m_emergency_desc') }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Allocation -->
+                                    <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm mb-10">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-9 h-9 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center text-base"><i class="fas fa-sort-amount-down"></i></div>
+                                            <h4 class="font-bold text-gray-800 text-base">{{ $t('home.algo_allocation_title') }}</h4>
+                                        </div>
+                                        <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.algo_allocation_desc') }}</p>
+                                    </div>
+
+
+                                    <!-- Compassion + Empathy -->
+                                    <div class="flex flex-col md:flex-row items-stretch gap-0 max-w-3xl">
+                                        <div class="flex-1 bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+                                            <div class="flex items-center gap-3 mb-3">
+                                                <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg"><i class="fas fa-brain"></i></div>
+                                                <div>
+                                                    <h4 class="font-bold text-gray-800 text-lg">{{ $t('home.compassion_title') }}</h4>
+                                                    <span class="text-xs text-gray-400 font-mono">85%</span>
+                                                </div>
+                                            </div>
+                                            <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.compassion_desc') }}</p>
+                                        </div>
+                                        <div class="flex items-center justify-center px-3 py-2 md:py-0">
+                                            <span class="text-2xl font-extralight text-gray-300">+</span>
+                                        </div>
+                                        <div class="flex-1 bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+                                            <div class="flex items-center gap-3 mb-3">
+                                                <div class="w-10 h-10 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center text-lg"><i class="fas fa-heart"></i></div>
+                                                <div>
+                                                    <h4 class="font-bold text-gray-800 text-lg">{{ $t('home.empathy_title') }}</h4>
+                                                    <span class="text-xs text-gray-400 font-mono">15%</span>
+                                                </div>
+                                            </div>
+                                            <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.empathy_desc') }}</p>
+                                        </div>
+                                    </div>
+
+                    </div>
+                </div></transition>
+            </div>
+
+            <!-- ═══ SECTION 3: How We Do It (Technology) ═══ -->
+            <div class="border-b border-gray-100 transition-all duration-300" :class="{ 'opacity-30': !homeSection3Open && (homeSection1Open || homeSection2Open || homeSection4Open), 'scale-[1.01] shadow-md': homeSectionHover === 3 }" @mouseenter="homeSectionHover = 3" @mouseleave="homeSectionHover = null">
+                <div class="py-16 px-4 cursor-pointer select-none bg-gray-50/50" @click="homeSection3Open = !homeSection3Open">
+                    <div class="max-w-6xl mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <div class="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-5xl text-sky-600 flex-shrink-0"><i class="fas fa-laptop-code"></i></div>
+                            <div>
+                                <h2 class="text-3xl font-extrabold text-gray-800">{{ $t('home.stack_title') }}</h2>
+                                <p class="text-sm text-gray-400 mt-2 max-w-2xl">{{ $t('home.section3_desc') }}</p>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300" :class="{ 'rotate-180': homeSection3Open }">
+                            <i class="fas fa-chevron-down text-gray-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+                <transition name="slide-section"><div v-if="homeSection3Open" class="pb-12 px-4 bg-gray-50/50">
+                    <div style="width:55%" class="mx-auto">
+                                    <!-- The three apps -->
+                                    <div class="space-y-5 mb-10">
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl text-white flex-shrink-0 mt-1" :style="{ backgroundColor: settings.theme.headerBg }"><i class="fas fa-leaf"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <div class="flex items-baseline gap-2 mb-1">
+                                                    <h4 class="font-bold text-gray-800 text-base">{{ $t('home.app_gm_title') }}</h4>
+                                                    <span class="text-xs text-gray-400 font-mono">{{ $t('home.app_gm_tag') }}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.tech_gm_long') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg bg-teal-600 flex items-center justify-center text-xl text-white flex-shrink-0 mt-1"><i class="fas fa-wallet"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <div class="flex items-baseline gap-2 mb-1">
+                                                    <h4 class="font-bold text-gray-800 text-base">{{ $t('home.app_fm_title') }}</h4>
+                                                    <span class="text-xs text-gray-400 font-mono">{{ $t('home.app_fm_tag') }}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.tech_fm_long') }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-5">
+                                            <div class="w-12 h-12 rounded-lg bg-sky-600 flex items-center justify-center text-xl text-white flex-shrink-0 mt-1"><i class="fas fa-columns"></i></div>
+                                            <div class="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex-1">
+                                                <div class="flex items-baseline gap-2 mb-1">
+                                                    <h4 class="font-bold text-gray-800 text-base">{{ $t('home.app_pm_title') }}</h4>
+                                                    <span class="text-xs text-gray-400 font-mono">{{ $t('home.app_pm_tag') }}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-500 leading-relaxed">{{ $t('home.tech_pm_long') }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+                                        <div class="flex flex-col md:flex-row items-center justify-center gap-3 text-center">
+                                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg" :style="{ backgroundColor: settings.theme.headerBg + '10' }">
+                                                <div class="w-8 h-8 rounded flex items-center justify-center text-white text-sm" :style="{ backgroundColor: settings.theme.headerBg }"><i class="fas fa-leaf"></i></div>
+                                                <span class="text-sm font-bold text-gray-700">GM</span>
+                                            </div>
+                                            <div class="text-gray-300 text-xs hidden md:block"><i class="fas fa-arrows-alt-h"></i></div>
+                                            <div class="text-gray-300 text-xs md:hidden"><i class="fas fa-arrows-alt-v"></i></div>
+                                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-50">
+                                                <div class="w-8 h-8 rounded bg-teal-600 flex items-center justify-center text-white text-sm"><i class="fas fa-wallet"></i></div>
+                                                <span class="text-sm font-bold text-gray-700">FM</span>
+                                            </div>
+                                            <div class="text-gray-300 text-xs hidden md:block"><i class="fas fa-arrows-alt-h"></i></div>
+                                            <div class="text-gray-300 text-xs md:hidden"><i class="fas fa-arrows-alt-v"></i></div>
+                                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-50">
+                                                <div class="w-8 h-8 rounded bg-sky-600 flex items-center justify-center text-white text-sm"><i class="fas fa-columns"></i></div>
+                                                <span class="text-sm font-bold text-gray-700">PM</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-xs text-gray-400 text-center mt-4 max-w-xl mx-auto">{{ $t('home.tech_glue_footer') }}</p>
+                                    </div>
+
+                    </div>
+                </div></transition>
+            </div>
+
+            <!-- ═══ SECTION 4: Project Lifecycle ═══ -->
+            <div class="border-b border-gray-100 transition-all duration-300" :class="{ 'opacity-30': !homeSection4Open && (homeSection1Open || homeSection2Open || homeSection3Open), 'scale-[1.01] shadow-md': homeSectionHover === 4 }" @mouseenter="homeSectionHover = 4" @mouseleave="homeSectionHover = null">
+                <div class="py-16 px-4 cursor-pointer select-none bg-gray-50/50" @click="homeSection4Open = !homeSection4Open">
+                    <div class="max-w-6xl mx-auto flex items-center justify-between">
+                        <div class="flex items-center gap-8">
+                            <div class="w-20 h-20 rounded-2xl bg-purple-50 flex items-center justify-center text-5xl text-purple-600 flex-shrink-0"><i class="fas fa-route"></i></div>
+                            <div>
+                                <h2 class="text-3xl font-extrabold text-gray-800">{{ $t('home.road_title') }}</h2>
+                                <p class="text-sm text-gray-400 mt-2 max-w-2xl">{{ $t('home.section4_desc') }}</p>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300" :class="{ 'rotate-180': homeSection4Open }">
+                            <i class="fas fa-chevron-down text-gray-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+                <transition name="slide-section"><div v-if="homeSection4Open" class="pb-12 px-4 bg-gray-50/50">
+                    <div style="width:55%" class="mx-auto">
+                                    <!-- Desktop snake (md+) -->
+                                    <div class="hidden md:block">
+                                        <div class="relative">
+                                            <div class="absolute top-5 left-[16.67%] right-[16.67%] road-h road-right"></div>
+                                            <div class="relative flex">
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 border-amber-400 flex items-center justify-center font-bold text-sm text-amber-500 shadow-sm z-10">1</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_1_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_1_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">2</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_2_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_2_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">3</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_3_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_3_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex"><div class="flex-1"></div><div class="flex-1"></div><div class="flex-1 flex justify-center"><div class="h-14 road-v road-down"></div></div></div>
+                                        <div class="relative">
+                                            <div class="absolute top-5 left-[16.67%] right-[16.67%] road-h road-left"></div>
+                                            <div class="relative flex flex-row-reverse">
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">4</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_4_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_4_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 border-sky-500 flex items-center justify-center font-bold text-sm text-sky-600 shadow-sm z-10">5</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_5_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_5_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 border-teal-500 flex items-center justify-center font-bold text-sm text-teal-600 shadow-sm z-10">6</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_6_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_6_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex"><div class="flex-1 flex justify-center"><div class="h-14 road-v road-down"></div></div><div class="flex-1"></div><div class="flex-1"></div></div>
+                                        <div class="relative">
+                                            <div class="absolute top-5 left-[16.67%] right-[16.67%] road-h road-right"></div>
+                                            <div class="relative flex">
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">7</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_7_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_7_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">8</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_8_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_8_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 flex flex-col items-center px-1">
+                                                    <div class="w-10 h-10 rounded-full bg-white border-2 border-sky-500 flex items-center justify-center font-bold text-sm text-sky-600 shadow-sm z-10">9</div>
+                                                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mt-2 w-full max-w-[240px] text-center">
+                                                        <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_9_title') }}</h4>
+                                                        <p class="text-sm text-gray-400 mt-0.5 leading-snug">{{ $t('home.road_9_desc') }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Mobile vertical timeline -->
+                                    <div class="md:hidden relative pl-8">
+                                        <div class="absolute left-[19px] top-0 bottom-0 road-v road-down"></div>
+                                        <div v-for="n in 9" :key="'m-'+n" class="flex items-start gap-3 relative" :class="n < 9 ? 'mb-6' : ''">
+                                            <div class="w-10 h-10 rounded-full bg-white border-2 flex items-center justify-center font-bold text-sm shadow-sm z-10 flex-shrink-0" :style="{ borderColor: settings.theme.headerBg, color: settings.theme.headerBg }">{{ n }}</div>
+                                            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-3 py-2.5">
+                                                <h4 class="font-bold text-gray-800 text-base">{{ $t('home.road_' + n + '_title') }}</h4>
+                                                <p class="text-sm text-gray-400 mt-0.5">{{ $t('home.road_' + n + '_desc') }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                    </div>
+                </div></transition>
+            </div>
+
+            <!-- CTA with icon grid carousel background -->
+            <div class="relative overflow-hidden" style="height:320px;margin-bottom:-64px">
+                <div class="absolute inset-0 flex flex-col justify-center" style="opacity:0.12">
+                    <div class="cta-icon-strip flex mb-10" style="animation:cta-scroll 40s linear infinite">
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-seedling text-emerald-500 text-3xl"></i><i class="fas fa-hand-holding-heart text-pink-500 text-3xl"></i><i class="fas fa-tree text-green-600 text-3xl"></i><i class="fas fa-water text-blue-500 text-3xl"></i><i class="fas fa-calculator text-amber-500 text-3xl"></i><i class="fas fa-users text-indigo-500 text-3xl"></i><i class="fas fa-wallet text-teal-500 text-3xl"></i><i class="fas fa-hammer text-orange-500 text-3xl"></i><i class="fas fa-map-marked-alt text-cyan-600 text-3xl"></i><i class="fas fa-flag text-red-400 text-3xl"></i><i class="fas fa-binoculars text-indigo-400 text-3xl"></i><i class="fas fa-palette text-pink-400 text-3xl"></i></div>
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-seedling text-emerald-500 text-3xl"></i><i class="fas fa-hand-holding-heart text-pink-500 text-3xl"></i><i class="fas fa-tree text-green-600 text-3xl"></i><i class="fas fa-water text-blue-500 text-3xl"></i><i class="fas fa-calculator text-amber-500 text-3xl"></i><i class="fas fa-users text-indigo-500 text-3xl"></i><i class="fas fa-wallet text-teal-500 text-3xl"></i><i class="fas fa-hammer text-orange-500 text-3xl"></i><i class="fas fa-map-marked-alt text-cyan-600 text-3xl"></i><i class="fas fa-flag text-red-400 text-3xl"></i><i class="fas fa-binoculars text-indigo-400 text-3xl"></i><i class="fas fa-palette text-pink-400 text-3xl"></i></div>
+                    </div>
+                    <div class="cta-icon-strip flex mb-10" style="animation:cta-scroll-rev 35s linear infinite">
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-leaf text-lime-500 text-3xl"></i><i class="fas fa-camera text-purple-500 text-3xl"></i><i class="fas fa-chart-line text-red-400 text-3xl"></i><i class="fas fa-hands-helping text-yellow-600 text-3xl"></i><i class="fas fa-mountain text-gray-500 text-3xl"></i><i class="fas fa-dove text-sky-500 text-3xl"></i><i class="fas fa-tractor text-amber-700 text-3xl"></i><i class="fas fa-home text-rose-400 text-3xl"></i><i class="fas fa-sun text-yellow-400 text-3xl"></i><i class="fas fa-gem text-violet-400 text-3xl"></i><i class="fas fa-scroll text-amber-400 text-3xl"></i><i class="fas fa-ribbon text-pink-300 text-3xl"></i></div>
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-leaf text-lime-500 text-3xl"></i><i class="fas fa-camera text-purple-500 text-3xl"></i><i class="fas fa-chart-line text-red-400 text-3xl"></i><i class="fas fa-hands-helping text-yellow-600 text-3xl"></i><i class="fas fa-mountain text-gray-500 text-3xl"></i><i class="fas fa-dove text-sky-500 text-3xl"></i><i class="fas fa-tractor text-amber-700 text-3xl"></i><i class="fas fa-home text-rose-400 text-3xl"></i><i class="fas fa-sun text-yellow-400 text-3xl"></i><i class="fas fa-gem text-violet-400 text-3xl"></i><i class="fas fa-scroll text-amber-400 text-3xl"></i><i class="fas fa-ribbon text-pink-300 text-3xl"></i></div>
+                    </div>
+                    <div class="cta-icon-strip flex mb-10" style="animation:cta-scroll 45s linear infinite">
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-globe-americas text-teal-600 text-3xl"></i><i class="fas fa-clipboard-check text-indigo-400 text-3xl"></i><i class="fas fa-coins text-yellow-500 text-3xl"></i><i class="fas fa-people-carry text-orange-400 text-3xl"></i><i class="fas fa-feather-alt text-emerald-400 text-3xl"></i><i class="fas fa-hard-hat text-amber-600 text-3xl"></i><i class="fas fa-paint-roller text-pink-400 text-3xl"></i><i class="fas fa-file-invoice-dollar text-sky-600 text-3xl"></i><i class="fas fa-handshake text-green-500 text-3xl"></i><i class="fas fa-archive text-gray-400 text-3xl"></i><i class="fas fa-road text-blue-300 text-3xl"></i><i class="fas fa-wind text-cyan-400 text-3xl"></i></div>
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-globe-americas text-teal-600 text-3xl"></i><i class="fas fa-clipboard-check text-indigo-400 text-3xl"></i><i class="fas fa-coins text-yellow-500 text-3xl"></i><i class="fas fa-people-carry text-orange-400 text-3xl"></i><i class="fas fa-feather-alt text-emerald-400 text-3xl"></i><i class="fas fa-hard-hat text-amber-600 text-3xl"></i><i class="fas fa-paint-roller text-pink-400 text-3xl"></i><i class="fas fa-file-invoice-dollar text-sky-600 text-3xl"></i><i class="fas fa-handshake text-green-500 text-3xl"></i><i class="fas fa-archive text-gray-400 text-3xl"></i><i class="fas fa-road text-blue-300 text-3xl"></i><i class="fas fa-wind text-cyan-400 text-3xl"></i></div>
+                    </div>
+                    <div class="cta-icon-strip flex" style="animation:cta-scroll-rev 38s linear infinite">
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-compass text-blue-400 text-3xl"></i><i class="fas fa-plug text-gray-400 text-3xl"></i><i class="fas fa-truck text-red-500 text-3xl"></i><i class="fas fa-drafting-compass text-violet-500 text-3xl"></i><i class="fas fa-recycle text-green-400 text-3xl"></i><i class="fas fa-bolt text-yellow-400 text-3xl"></i><i class="fas fa-shield-alt text-sky-500 text-3xl"></i><i class="fas fa-store text-rose-500 text-3xl"></i><i class="fas fa-horse text-amber-500 text-3xl"></i><i class="fas fa-trophy text-yellow-500 text-3xl"></i><i class="fas fa-lightbulb text-amber-300 text-3xl"></i><i class="fas fa-anchor text-gray-500 text-3xl"></i></div>
+                        <div class="flex items-center gap-16 pr-16"><i class="fas fa-compass text-blue-400 text-3xl"></i><i class="fas fa-plug text-gray-400 text-3xl"></i><i class="fas fa-truck text-red-500 text-3xl"></i><i class="fas fa-drafting-compass text-violet-500 text-3xl"></i><i class="fas fa-recycle text-green-400 text-3xl"></i><i class="fas fa-bolt text-yellow-400 text-3xl"></i><i class="fas fa-shield-alt text-sky-500 text-3xl"></i><i class="fas fa-store text-rose-500 text-3xl"></i><i class="fas fa-horse text-amber-500 text-3xl"></i><i class="fas fa-trophy text-yellow-500 text-3xl"></i><i class="fas fa-lightbulb text-amber-300 text-3xl"></i><i class="fas fa-anchor text-gray-500 text-3xl"></i></div>
+                    </div>
+                </div>
+                <div class="absolute inset-0 flex items-center justify-center z-10">
+                    <button @click="goTo('projects')" class="group px-12 py-5 rounded-2xl font-extrabold text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-110 text-xl animate-bounce-slow" :style="{ backgroundColor: settings.theme.headerBg }">
+                        <i class="fas fa-rocket mr-3 group-hover:rotate-12 transition-transform duration-300"></i>{{ $t('home.cta_projects') }}<i class="fas fa-arrow-right ml-3 group-hover:translate-x-1 transition-transform duration-300"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+

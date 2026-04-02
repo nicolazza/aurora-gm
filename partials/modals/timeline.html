@@ -1,0 +1,481 @@
+    <div v-if="showProjectTimelineModal && projectTimelineData" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[90] p-4 backdrop-blur-sm" @click.self="showProjectTimelineModal = false; expandedTimelineBudgets = []; expandedTimelineInterventions = []; timelineViewMode = 'columns'; ganttPopoverEvent = null">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-h-[90vh] flex flex-col animate-fade-in-up"
+             :class="timelineViewMode === 'gantt' ? 'max-w-5xl' : (projectTimelineData.tiers.length === 1 ? 'max-w-md' : (projectTimelineData.tiers.length === 2 ? 'max-w-2xl' : 'max-w-4xl'))">
+            <!-- Header -->
+            <div class="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center shrink-0 rounded-t-xl">
+                <h3 class="font-bold text-lg">
+                    <i class="fas fa-history mr-2"></i>
+                    {{ $t('timeline.title') }}
+                </h3>
+                <div class="flex items-center gap-3">
+                    <!-- View toggle -->
+                    <div class="flex bg-white/20 rounded-lg p-0.5">
+                        <button @click="timelineViewMode = 'columns'; ganttPopoverEvent = null"
+                                class="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+                                :class="timelineViewMode === 'columns' ? 'bg-white text-indigo-700 shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                                :title="$t('timeline.column_view')">
+                            <i class="fas fa-columns"></i>
+                        </button>
+                        <button @click="timelineViewMode = 'gantt'; ganttPopoverEvent = null"
+                                class="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+                                :class="timelineViewMode === 'gantt' ? 'bg-white text-indigo-700 shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'"
+                                :title="$t('timeline.gantt_view')">
+                            <i class="fas fa-stream"></i>
+                        </button>
+                    </div>
+                    <button @click="showProjectTimelineModal = false; expandedTimelineBudgets = []; expandedTimelineInterventions = []; timelineViewMode = 'columns'; ganttPopoverEvent = null" class="hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            
+            <!-- Project Info -->
+            <div class="p-4 bg-gray-50 border-b">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-bold text-gray-800 text-lg">{{ projectTimelineData.project.title }}</div>
+                        <span v-if="projectTimelineData.project.categoryName" 
+                              class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded text-white uppercase" 
+                              :style="{ backgroundColor: getCategoryColor(projectTimelineData.project.categoryName) }">
+                            {{ getCatName(projectTimelineData.project.categoryName) }}
+                        </span>
+                    </div>
+                    <div class="text-xl font-bold text-gray-700">${{ formatMoney(getProjectTotalValue(projectTimelineData.project)) }}</div>
+                </div>
+            </div>
+            
+            <!-- Loading State -->
+            <div v-if="projectTimelineData.loading" class="flex-1 flex items-center justify-center p-12">
+                <div class="text-center text-gray-400">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-3 text-indigo-500"></i>
+                    <p>{{ $t('timeline.loading') }}</p>
+                </div>
+            </div>
+            
+            <!-- Error State -->
+            <div v-else-if="projectTimelineData.error" class="flex-1 flex items-center justify-center p-12">
+                <div class="text-center text-red-400">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p>{{ projectTimelineData.error }}</p>
+                </div>
+            </div>
+            
+            <!-- Timeline Content: Column View -->
+            <div v-else-if="timelineViewMode === 'columns'" class="flex-1 overflow-y-auto p-4">
+                <!-- Timeline Grid - Top aligned -->
+                <div class="flex gap-4 items-start">
+                    <!-- Each Tier Column -->
+                    <div v-for="(tierData, tierIdx) in projectTimelineData.tiers" :key="tierData.tier.id" 
+                         class="flex-1 flex flex-col group/col">
+                        
+                        <!-- Step Column Header (always visible) -->
+                        <div class="text-center mb-3 pb-3 border-b-2 border-gray-200">
+                            <div class="text-lg font-bold text-gray-700 mb-1 flex items-center justify-center gap-2">
+                                <button v-if="tierData.tier.algorithmSelectionType === 'empathy'" 
+                                        @click.stop="showEmpathyExplanationModal = true"
+                                        class="text-purple-500 hover:text-purple-700 transition"
+                                        :title="$t('timeline.empathy_selection_tooltip')">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                                <span>{{ $t('timeline.step_level', { level: tierData.level }) }}</span>
+                            </div>
+                            <div class="text-sm font-bold text-gray-600 mb-2">${{ formatMoney(getTierTotalValue(tierData.tier)) }}</div>
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full"
+                                  :class="tierData.tier.status === 'backlog' || !tierData.tier.status ? 'bg-gray-100 text-gray-500' : ''"
+                                  :style="tierData.tier.status === 'completed' ? { backgroundColor: settings.theme.colorTierCompleted, color: '#FFFFFF' } : (tierData.tier.status === 'in_progress' ? { backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.2), color: settings.theme.colorTierInProgress } : {})">
+                                {{ tierData.tier.status === 'completed' ? $t('timeline.completed') : (tierData.tier.status === 'in_progress' ? $t('timeline.in_progress') : $t('timeline.backlog')) }}
+                            </span>
+                        </div>
+                        
+                        <!-- Column Content (grayed out until hover) -->
+                        <div class="opacity-40 grayscale group-hover/col:opacity-100 group-hover/col:grayscale-0 transition-all duration-300">
+                        
+                        <!-- Collapsible Budget Breakdown -->
+                        <div class="mb-3">
+                            <button @click="expandedTimelineBudgets.includes(tierData.tier.id) ? expandedTimelineBudgets = expandedTimelineBudgets.filter(id => id !== tierData.tier.id) : expandedTimelineBudgets.push(tierData.tier.id)"
+                                    class="w-full flex items-center justify-between px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-sm text-gray-700">
+                                <span class="font-medium"><i class="fas fa-file-invoice-dollar mr-2 text-blue-500"></i>{{ $t('timeline.budget_breakdown') }}</span>
+                                <i class="fas" :class="expandedTimelineBudgets.includes(tierData.tier.id) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                            </button>
+                            <transition name="collapse">
+                                <div v-if="expandedTimelineBudgets.includes(tierData.tier.id)" class="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs">
+                                    <h5 class="font-bold text-gray-700 border-b pb-1 mb-2">
+                                        {{ tierData.tier.status === 'completed' ? $t('timeline.verified_costs') : $t('timeline.planned_costs') }}
+                                    </h5>
+                                    <!-- Monetary Costs -->
+                                    <div class="space-y-1 text-gray-600">
+                                        <div v-for="cost in getCostBreakdown(tierData.tier)" :key="cost.id" class="flex justify-between">
+                                            <span>{{ getCostTypeName(cost.name) }}:</span>
+                                            <span class="font-bold">${{ formatMoney(cost.amount) }}</span>
+                                        </div>
+                                        <div v-if="getCostBreakdown(tierData.tier).length === 0" class="text-gray-400 italic text-center py-2">
+                                            {{ $t('timeline.no_monetary_costs') }}
+                                        </div>
+                                        <div class="border-t pt-1 mt-1 flex justify-between font-bold text-gray-800">
+                                            <span>{{ $t('timeline.total') }}</span>
+                                            <span>${{ formatMoney(getTierDisplayMonetary(tierData.tier)) }}</span>
+                                        </div>
+                                    </div>
+                                    <!-- In-Kind Labor Section -->
+                                    <div v-if="(tierData.tier.status === 'completed' ? ((tierData.tier.verifiedInkindPeople || 0) * (tierData.tier.verifiedInkindHours || 0)) : ((tierData.tier.inkindPeople || 0) * (tierData.tier.inkindHours || 0))) > 0" class="mt-2 pt-2 -mx-3 px-3 py-2 rounded-b" :style="{ borderTop: '1px solid ' + colorAlpha(settings.theme.colorInkind, 0.2), backgroundColor: colorAlpha(settings.theme.colorInkind, 0.06) }">
+                                        <div class="font-bold text-[10px] mb-1" :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hard-hat mr-1"></i>{{ $t('timeline.inkind_labor') }}</div>
+                                        <div class="flex justify-between text-[11px]" :style="{ color: colorAlpha(settings.theme.colorInkind, 0.85) }">
+                                            <span v-if="tierData.tier.status === 'completed'">{{ (tierData.tier.verifiedInkindPeople || 1) * (tierData.tier.verifiedInkindHours || 0) }} {{ $t('common.hrs') }} × ${{ tierData.tier.verifiedInkindRate || 0 }}/{{ $t('common.hrs') }}</span>
+                                            <span v-else>{{ tierData.tier.inkindPeople }} {{ $t('timeline.people_unit') }} × {{ tierData.tier.inkindHours }} {{ $t('common.hrs') }} × ${{ tierData.tier.inkindRate }}/{{ $t('common.hrs') }}</span>
+                                        </div>
+                                        <div class="flex justify-between font-bold text-[11px] mt-1" :style="{ color: settings.theme.colorInkind }">
+                                            <span>{{ $t('timeline.value') }}</span>
+                                            <span>${{ formatMoney((tierData.tier.status === 'completed' ? tierData.tier.verifiedInkindPeople : tierData.tier.inkindPeople) * (tierData.tier.status === 'completed' ? tierData.tier.verifiedInkindHours : tierData.tier.inkindHours) * (tierData.tier.status === 'completed' ? tierData.tier.verifiedInkindRate : tierData.tier.inkindRate)) }}</span>
+                                        </div>
+                                    </div>
+                                    <!-- Community Labor Section -->
+                                    <div v-if="(tierData.tier.status === 'completed' ? ((tierData.tier.verifiedCommunityPeople || 0) * (tierData.tier.verifiedCommunityHours || 0)) : ((tierData.tier.communityPeople || 0) * (tierData.tier.communityHours || 0))) > 0" class="mt-2 pt-2 -mx-3 px-3 py-2 rounded-b" :style="{ borderTop: '1px solid ' + colorAlpha(settings.theme.colorCommunity, 0.2), backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.06) }">
+                                        <div class="font-bold text-[10px] mb-1" :style="{ color: settings.theme.colorCommunity }"><i class="fas fa-users mr-1"></i>{{ $t('timeline.community_labor') }}</div>
+                                        <div class="flex justify-between text-[11px]" :style="{ color: colorAlpha(settings.theme.colorCommunity, 0.85) }">
+                                            <span v-if="tierData.tier.status === 'completed'">{{ (tierData.tier.verifiedCommunityPeople || 1) * (tierData.tier.verifiedCommunityHours || 0) }} {{ $t('common.hrs') }} × ${{ tierData.tier.verifiedCommunityRate || 0 }}/{{ $t('common.hrs') }}</span>
+                                            <span v-else>{{ tierData.tier.communityPeople }} {{ $t('timeline.people_unit') }} × {{ tierData.tier.communityHours }} {{ $t('common.hrs') }} × ${{ tierData.tier.communityRate }}/{{ $t('common.hrs') }}</span>
+                                        </div>
+                                        <div class="flex justify-between font-bold text-[11px] mt-1" :style="{ color: settings.theme.colorCommunity }">
+                                            <span>{{ $t('timeline.value') }}</span>
+                                            <span>${{ formatMoney((tierData.tier.status === 'completed' ? tierData.tier.verifiedCommunityPeople : tierData.tier.communityPeople) * (tierData.tier.status === 'completed' ? tierData.tier.verifiedCommunityHours : tierData.tier.communityHours) * (tierData.tier.status === 'completed' ? tierData.tier.verifiedCommunityRate : tierData.tier.communityRate)) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 pt-2 border-t border-gray-200 text-center">
+                                        <button type="button" @click.stop="openStepManagementModal(tierData.tier, projectTimelineData.project.title)" class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 focus:outline-none transition-colors"><i class="fas fa-clipboard-list text-[10px]"></i> {{ $t('timeline.management_research') }}</button>
+                                    </div>
+                                </div>
+                            </transition>
+                        </div>
+                        
+                        <!-- Events -->
+                        <div class="space-y-2">
+                            <template v-for="(event, evtIdx) in tierData.events" :key="evtIdx">
+                                <!-- Intervention Card (paper-like) -->
+                                <div v-if="event.type === 'intervention'"
+                                     class="relative bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:shadow-lg transition-all overflow-hidden"
+                                     :class="expandedTimelineInterventions.includes(event.details.id) ? 'shadow-lg ring-1 ring-indigo-200' : 'shadow-md'"
+                                     @click="expandedTimelineInterventions.includes(event.details.id) ? expandedTimelineInterventions = expandedTimelineInterventions.filter(id => id !== event.details.id) : expandedTimelineInterventions.push(event.details.id)"
+                                     style="background: linear-gradient(160deg, #ffffff 0%, #f9f8f5 100%);">
+                                    <!-- Corner fold decoration -->
+                                    <div class="absolute top-0 right-0 w-5 h-5" style="background: linear-gradient(225deg, #e5e7eb 50%, transparent 50%); border-bottom-left-radius: 4px;"></div>
+                                    <!-- Header: date left, user right -->
+                                    <div class="flex justify-between items-start mb-2 pr-4">
+                                        <div class="flex items-center gap-1.5">
+                                            <i class="fas fa-clipboard-check text-indigo-500 text-xs"></i>
+                                            <span class="text-[11px] font-bold text-gray-700">{{ event.date ? new Date(event.date).toLocaleDateString() : $t('common.na') }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <img v-if="event.details.userAvatar" :src="event.details.userAvatar" class="w-4 h-4 rounded-full object-cover" />
+                                            <span class="text-[10px] text-gray-500 italic">{{ event.details.userName }}</span>
+                                        </div>
+                                    </div>
+                                    <!-- Separator -->
+                                    <div class="border-t border-dashed border-gray-200 mb-2"></div>
+                                    <!-- Excerpt (collapsed) -->
+                                    <div v-if="!expandedTimelineInterventions.includes(event.details.id)" class="text-[11px] text-gray-600 leading-relaxed">
+                                        {{ event.details.excerpt }}
+                                        <span v-if="event.details.excerpt.endsWith('…')" class="text-indigo-400 text-[10px] ml-1"><i class="fas fa-chevron-down text-[8px]"></i> {{ $t('timeline.more') }}</span>
+                                    </div>
+                                    <!-- Full description (expanded) -->
+                                    <div v-else class="text-[11px] text-gray-600 leading-relaxed intervention-rich-text" v-html="sanitize(event.details.description)"></div>
+                                    <!-- Collapse hint when expanded -->
+                                    <div v-if="expandedTimelineInterventions.includes(event.details.id)" class="mt-2 text-center">
+                                        <span class="text-indigo-400 text-[10px]"><i class="fas fa-chevron-up text-[8px]"></i> {{ $t('timeline.collapse') }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Regular Event Card -->
+                                <div v-if="event.type !== 'intervention'" class="relative p-3 rounded-lg border-2 transition-all"
+                                     :class="event.type === 'backlog' ? 'bg-gray-50 border-gray-200' : ''"
+                                     :style="event.type === 'completed' ? { backgroundColor: colorAlpha(settings.theme.colorTierCompleted, 0.15), borderColor: settings.theme.colorTierCompleted } : (event.type === 'started' ? { backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.08), borderColor: settings.theme.colorTierInProgress } : {})">
+                                    
+                                    <!-- Event Header -->
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
+                                             :class="event.type === 'backlog' ? 'bg-gray-400' : ''"
+                                             :style="event.type === 'completed' ? { backgroundColor: settings.theme.colorTierCompleted } : (event.type === 'started' ? { backgroundColor: settings.theme.colorTierInProgress, color: settings.theme.colorTierInProgress } : {})">
+                                            <i class="fas" :class="event.icon"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-sm text-gray-800">{{ event.label }}</div>
+                                            <div class="text-[10px] text-gray-500">{{ event.date ? new Date(event.date).toLocaleDateString() : $t('common.na') }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Separator -->
+                                    <div class="border-t border-gray-200 mb-2"></div>
+                                    
+                                    <!-- Event Details (only lines with value > 0) -->
+                                    <div class="text-[11px] space-y-1.5 pl-10">
+                                        <div v-if="event.type === 'backlog' && event.details.monetaryCosts > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+                                            <span><i class="fas fa-dollar-sign mr-1"></i>{{ $t('timeline.monetary_label') }}</span>
+                                            <span class="font-bold">${{ formatMoney(event.details.monetaryCosts) }}</span>
+                                        </div>
+                                        <div v-if="event.type === 'started' && event.details.allocatedAmount > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+                                            <span><i class="fas fa-wallet mr-1"></i>{{ $t('timeline.allocated_wallet', { wallet: event.details.walletName || $t('common.na') }) }}</span>
+                                            <span class="font-bold">${{ formatMoney(event.details.allocatedAmount) }}</span>
+                                        </div>
+                                        <div v-if="event.type === 'completed' && event.details.verifiedAmount > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+                                            <span><i class="fas fa-check mr-1"></i>{{ $t('timeline.verified') }}</span>
+                                            <span class="font-bold">${{ formatMoney(event.details.verifiedAmount) }}</span>
+                                        </div>
+                                        
+                                        <!-- In-Kind Labor -->
+                                        <div v-if="event.details.inkind && event.details.inkind.value > 0" class="flex justify-between pt-1 border-t" :style="{ color: settings.theme.colorInkind, borderColor: colorAlpha(settings.theme.colorInkind, 0.15) }">
+                                            <span><i class="fas fa-hard-hat mr-1"></i>{{ $t('timeline.inkind_label') }}</span>
+                                            <span class="font-bold">{{ event.details.inkind.people }}p × {{ event.details.inkind.hours }}h × ${{ event.details.inkind.rate }} = ${{ formatMoney(event.details.inkind.value) }}</span>
+                                        </div>
+                                        
+                                        <!-- Community Labor -->
+                                        <div v-if="event.details.community && event.details.community.value > 0" class="flex justify-between pt-1 border-t" :style="{ color: settings.theme.colorCommunity, borderColor: colorAlpha(settings.theme.colorCommunity, 0.15) }">
+                                            <span><i class="fas fa-users mr-1"></i>{{ $t('timeline.community_label') }}</span>
+                                            <span class="font-bold">{{ event.details.community.people }}p × {{ event.details.community.hours }}h × ${{ event.details.community.rate }} = ${{ formatMoney(event.details.community.value) }}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Footer for Completed Events: Adjustments + actions row -->
+                                    <div v-if="event.type === 'completed'" class="mt-2 ml-10">
+                                        <!-- Monetary adjustments (Reimbursement/Additional) -->
+                                        <div v-if="event.details.reimbursement > 0 || event.details.additionalCost > 0" class="text-[11px] space-y-1 mb-2">
+                                            <div v-if="event.details.reimbursement > 0" class="flex justify-between items-center bg-blue-50 rounded px-2 py-1">
+                                                <span class="text-blue-700"><i class="fas fa-undo mr-1"></i>{{ $t('timeline.reimbursement') }}</span>
+                                                <span class="font-bold text-blue-700">+${{ formatMoney(event.details.reimbursement) }}</span>
+                                            </div>
+                                            <div v-if="event.details.additionalCost > 0" class="flex justify-between items-center bg-red-50 rounded px-2 py-1">
+                                                <span class="text-red-700"><i class="fas fa-plus mr-1"></i>{{ $t('timeline.additional_cost') }}</span>
+                                                <span class="font-bold text-red-700">-${{ formatMoney(event.details.additionalCost) }}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Labor hour adjustments (In-Kind) -->
+                                        <div v-if="event.details.inkindHoursDiff && event.details.inkindHoursDiff !== 0" class="text-[11px] mb-2">
+                                            <div v-if="event.details.inkindHoursDiff > 0" class="flex justify-between items-center rounded px-2 py-1" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.08) }">
+                                                <span :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hard-hat mr-1"></i>{{ $t('timeline.extra_inkind') }}</span>
+                                                <span class="font-bold" :style="{ color: settings.theme.colorInkind }">+{{ event.details.inkindHoursDiff }} {{ $t('common.hrs') }}</span>
+                                            </div>
+                                            <div v-else class="flex justify-between items-center rounded px-2 py-1" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.08) }">
+                                                <span :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hard-hat mr-1"></i>{{ $t('timeline.fewer_inkind') }}</span>
+                                                <span class="font-bold" :style="{ color: settings.theme.colorInkind }">{{ event.details.inkindHoursDiff }} {{ $t('common.hrs') }}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Labor hour adjustments (Community) -->
+                                        <div v-if="event.details.communityHoursDiff && event.details.communityHoursDiff !== 0" class="text-[11px] mb-2">
+                                            <div v-if="event.details.communityHoursDiff > 0" class="flex justify-between items-center rounded px-2 py-1" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.08) }">
+                                                <span :style="{ color: settings.theme.colorCommunity }"><i class="fas fa-users mr-1"></i>{{ $t('timeline.extra_community') }}</span>
+                                                <span class="font-bold" :style="{ color: settings.theme.colorCommunity }">+{{ event.details.communityHoursDiff }} {{ $t('common.hrs') }}</span>
+                                            </div>
+                                            <div v-else class="flex justify-between items-center rounded px-2 py-1" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.08) }">
+                                                <span :style="{ color: settings.theme.colorCommunity }"><i class="fas fa-users mr-1"></i>{{ $t('timeline.fewer_community') }}</span>
+                                                <span class="font-bold" :style="{ color: settings.theme.colorCommunity }">{{ event.details.communityHoursDiff }} {{ $t('common.hrs') }}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Documental Proof only (link, inside event block); separator full width of event block -->
+                                        <div class="mt-3 pt-2 text-[11px] -ml-10 w-[calc(100%+2.5rem)] pl-10" :style="{ borderTop: '1px solid ' + settings.theme.colorTierCompleted }">
+                                            <span v-if="event.details.hasProof" 
+                                                  @click="openProofViewer(event.tier)"
+                                                  class="inline-flex items-center gap-1.5 hover:underline cursor-pointer" :style="{ color: settings.theme.colorTierCompleted }">
+                                                <i class="fas fa-file-pdf"></i>
+                                                {{ $t('timeline.documental_proof') }}
+                                            </span>
+                                            <span v-else class="inline-flex items-center gap-1.5 text-gray-400">
+                                                <i class="fas fa-file-pdf"></i>
+                                                {{ $t('timeline.documental_proof') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Notes + Gallery buttons removed -->
+                                
+                                <!-- Connector to next event (if not last) -->
+                                <div v-if="evtIdx < tierData.events.length - 1" class="flex items-center justify-center py-1">
+                                    <div class="flex flex-col items-center text-gray-400">
+                                        <i class="fas fa-arrow-down text-sm"></i>
+                                        <span class="text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded-full mt-1">
+                                            {{ formatDaysBetween(event.date, tierData.events[evtIdx + 1].date) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        
+                        </div><!-- End of grayscale wrapper -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Timeline Content: Gantt View -->
+            <div v-else class="flex-1 overflow-y-auto p-4 pr-6 gantt-container relative" @click="ganttPopoverEvent = null">
+                <!-- Date axis (top) -->
+                <div class="flex mb-1 pl-28 relative h-5 pr-4">
+                    <div class="flex-1 relative">
+                        <template v-for="tick in getGanttTicks()" :key="tick.pct">
+                            <div class="absolute text-[9px] text-gray-400 font-medium -translate-x-1/2 whitespace-nowrap" :style="{ left: tick.pct + '%' }">
+                                {{ tick.label }}
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <!-- Rows container -->
+                <div class="relative">
+                    <!-- Step rows -->
+                    <div v-for="(tierData, tierIdx) in projectTimelineData.tiers" :key="'gantt-' + tierData.tier.id"
+                         class="flex items-center gantt-row" :class="tierIdx < projectTimelineData.tiers.length - 1 ? 'border-b border-gray-100' : ''">
+                        
+                        <!-- Step label (in-flow, fixed width) -->
+                        <div class="w-28 shrink-0 pr-3 flex flex-col justify-center py-3">
+                            <div class="text-xs font-bold text-gray-700 leading-tight">{{ $t('timeline.step_level', { level: tierData.level }) }}</div>
+                            <div class="text-[10px] text-gray-400">${{ formatMoney(getTierTotalValue(tierData.tier)) }}</div>
+                            <span class="mt-0.5 text-[8px] font-semibold px-1.5 py-0.5 rounded-full inline-block w-fit"
+                                  :class="tierData.tier.status === 'backlog' || !tierData.tier.status ? 'bg-gray-100 text-gray-400' : ''"
+                                  :style="tierData.tier.status === 'completed' ? { backgroundColor: colorAlpha(settings.theme.colorTierCompleted, 0.2), color: settings.theme.colorTierCompleted } : (tierData.tier.status === 'in_progress' ? { backgroundColor: colorAlpha(settings.theme.colorTierInProgress, 0.3), color: '#92400e' } : {})">
+                                {{ tierData.tier.status === 'completed' ? $t('timeline.gantt_completed') : (tierData.tier.status === 'in_progress' ? $t('timeline.in_progress') : $t('timeline.gantt_backlog')) }}
+                            </span>
+                        </div>
+                        
+                        <!-- Track area (relative for positioning bars + markers) -->
+                        <div class="flex-1 relative py-5 pr-4" style="min-height: 68px;">
+                            <!-- Vertical tick grid lines -->
+                            <template v-for="tick in getGanttTicks()" :key="'tl-' + tierData.tier.id + '-' + tick.pct">
+                                <div class="absolute top-0 bottom-0 border-l border-gray-100 pointer-events-none" :style="{ left: tick.pct + '%' }"></div>
+                            </template>
+                            <!-- Phase bar: Backlog → Started (gray dashed) -->
+                            <template v-if="tierData.events.find(e => e.type === 'started')">
+                                <div class="gantt-bar-backlog absolute top-1/2 -translate-y-1/2 h-2 rounded-full"
+                                     :style="{
+                                         left: getEventPct(tierData.events.find(e => e.type === 'backlog')?.date) + '%',
+                                         width: (getEventPct(tierData.events.find(e => e.type === 'started')?.date) - getEventPct(tierData.events.find(e => e.type === 'backlog')?.date)) + '%'
+                                     }"></div>
+                            </template>
+                            
+                            <!-- Phase bar: Started → Completed (same color as in_progress, striped) -->
+                            <template v-if="tierData.events.find(e => e.type === 'completed')">
+                                <div class="gantt-bar-active absolute top-1/2 -translate-y-1/2 h-3 rounded-full"
+                                     :style="{
+                                         left: getEventPct(tierData.events.find(e => e.type === 'started')?.date) + '%',
+                                         width: (getEventPct(tierData.events.find(e => e.type === 'completed')?.date) - getEventPct(tierData.events.find(e => e.type === 'started')?.date)) + '%',
+                                         backgroundColor: settings.theme.colorTierInProgress
+                                     }"></div>
+                            </template>
+                            
+                            <!-- Phase bar: Started → Now (in_progress, striped) -->
+                            <template v-if="tierData.tier.status === 'in_progress' && !tierData.events.find(e => e.type === 'completed')">
+                                <div class="gantt-bar-active absolute top-1/2 -translate-y-1/2 h-3 rounded-full"
+                                     :style="{
+                                         left: getEventPct(tierData.events.find(e => e.type === 'started')?.date) + '%',
+                                         width: (100 - getEventPct(tierData.events.find(e => e.type === 'started')?.date)) + '%',
+                                         backgroundColor: settings.theme.colorTierInProgress
+                                     }"></div>
+                            </template>
+                            
+                            <!-- Phase bar: Backlog only (gray, no start) -->
+                            <template v-if="!tierData.events.find(e => e.type === 'started')">
+                                <div class="gantt-bar-backlog absolute top-1/2 -translate-y-1/2 h-2 rounded-full"
+                                     :style="{
+                                         left: getEventPct(tierData.events.find(e => e.type === 'backlog')?.date) + '%',
+                                         width: '6%',
+                                         minWidth: '20px'
+                                     }"></div>
+                            </template>
+                            
+                            <!-- Event markers -->
+                            <template v-for="(event, evtIdx) in tierData.events" :key="'gm-' + evtIdx">
+                                <!-- Regular event marker (circle; completed is bigger) -->
+                                <div v-if="event.type !== 'intervention'"
+                                     class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-white shadow-sm cursor-pointer z-10 transition-transform hover:scale-125"
+                                     :class="[event.type === 'backlog' ? 'bg-gray-400' : '', event.type === 'completed' ? 'w-5 h-5' : 'w-4 h-4']"
+                                     :style="{
+                                         left: getEventPct(event.date) + '%',
+                                         backgroundColor: event.type === 'completed' ? settings.theme.colorTierCompleted : (event.type === 'started' ? settings.theme.colorTierInProgress : undefined)
+                                     }"
+                                     :title="event.label + ' — ' + (event.date ? new Date(event.date).toLocaleDateString() : $t('common.na'))"
+                                     @click.stop="openGanttPopover(event, tierIdx, evtIdx, $event)">
+                                </div>
+                                
+                                <!-- Intervention marker (diamond) -->
+                                <div v-if="event.type === 'intervention'"
+                                     class="absolute top-1/2 w-3.5 h-3.5 bg-indigo-500 border-2 border-white shadow-sm cursor-pointer z-10 gantt-diamond"
+                                     :style="{ left: getEventPct(event.date) + '%' }"
+                                     :title="$t('timeline.gantt_intervention') + ' — ' + (event.date ? new Date(event.date).toLocaleDateString() : $t('common.na')) + ' — ' + (event.details.userName || '')"
+                                     @click.stop="openGanttPopover(event, tierIdx, evtIdx, $event)">
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gantt Legend -->
+                <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-center gap-5 text-[10px] text-gray-400">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-gray-400 inline-block"></span> {{ $t('timeline.gantt_backlog') }}</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full inline-block" :style="{ backgroundColor: settings.theme.colorTierInProgress }"></span> {{ $t('timeline.gantt_started') }}</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full inline-block" :style="{ backgroundColor: settings.theme.colorTierCompleted }"></span> {{ $t('timeline.gantt_completed') }}</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 bg-indigo-500 inline-block" style="transform: rotate(45deg); border-radius: 2px;"></span> {{ $t('timeline.gantt_intervention') }}</span>
+                </div>
+                
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Gantt Popover (teleported to body, free of all clipping/transforms) -->
+    <teleport to="body">
+        <transition name="popover">
+            <div v-if="ganttPopoverEvent" 
+                 class="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 p-3 max-w-xs gantt-popover"
+                 :style="{ left: ganttPopoverEvent.x + 'px', top: ganttPopoverEvent.y + 'px', transform: 'translate(-50%, -100%)' }"
+                 @click.stop>
+                <!-- Close button -->
+                <button @click="ganttPopoverEvent = null" class="absolute top-1 right-1.5 text-gray-300 hover:text-gray-500 text-xs"><i class="fas fa-times"></i></button>
+                
+                <!-- Regular event popover -->
+                <template v-if="ganttPopoverEvent.event.type !== 'intervention'">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px]"
+                             :class="ganttPopoverEvent.event.type === 'backlog' ? 'bg-gray-400' : ''"
+                             :style="ganttPopoverEvent.event.type === 'completed' ? { backgroundColor: settings.theme.colorTierCompleted } : (ganttPopoverEvent.event.type === 'started' ? { backgroundColor: settings.theme.colorTierInProgress } : {})">
+                            <i class="fas" :class="ganttPopoverEvent.event.icon"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-gray-800">{{ ganttPopoverEvent.event.label }}</div>
+                            <div class="text-[10px] text-gray-500">{{ ganttPopoverEvent.event.date ? new Date(ganttPopoverEvent.event.date).toLocaleDateString() : $t('common.na') }}</div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] space-y-1">
+                        <div v-if="ganttPopoverEvent.event.type === 'backlog' && ganttPopoverEvent.event.details.monetaryCosts > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+                            <span><i class="fas fa-dollar-sign mr-1"></i>{{ $t('timeline.monetary_label') }}</span>
+                            <span class="font-bold">${{ formatMoney(ganttPopoverEvent.event.details.monetaryCosts) }}</span>
+                        </div>
+                        <div v-if="ganttPopoverEvent.event.type === 'started' && ganttPopoverEvent.event.details.allocatedAmount > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+                            <span><i class="fas fa-wallet mr-1"></i>{{ $t('timeline.allocated') }}</span>
+                            <span class="font-bold">${{ formatMoney(ganttPopoverEvent.event.details.allocatedAmount) }}</span>
+                        </div>
+                        <div v-if="ganttPopoverEvent.event.type === 'completed' && ganttPopoverEvent.event.details.verifiedAmount > 0" class="flex justify-between" :style="{ color: settings.theme.colorMonetary }">
+<span><i class="fas fa-check mr-1"></i>{{ $t('timeline.verified') }}</span>
+                                            <span class="font-bold">${{ formatMoney(ganttPopoverEvent.event.details.verifiedAmount) }}</span>
+                        </div>
+                        <div v-if="ganttPopoverEvent.event.details.inkind && ganttPopoverEvent.event.details.inkind.value > 0" class="flex justify-between pt-1 border-t" :style="{ color: settings.theme.colorInkind, borderColor: colorAlpha(settings.theme.colorInkind, 0.15) }">
+                            <span><i class="fas fa-hard-hat mr-1"></i>{{ $t('timeline.inkind_label') }}</span>
+                            <span class="font-bold">${{ formatMoney(ganttPopoverEvent.event.details.inkind.value) }}</span>
+                        </div>
+                        <div v-if="ganttPopoverEvent.event.details.community && ganttPopoverEvent.event.details.community.value > 0" class="flex justify-between pt-1 border-t" :style="{ color: settings.theme.colorCommunity, borderColor: colorAlpha(settings.theme.colorCommunity, 0.15) }">
+                            <span><i class="fas fa-users mr-1"></i>{{ $t('timeline.community_label') }}</span>
+                            <span class="font-bold">${{ formatMoney(ganttPopoverEvent.event.details.community.value) }}</span>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Intervention popover -->
+                <template v-if="ganttPopoverEvent.event.type === 'intervention'">
+                    <div class="flex justify-between items-start mb-1.5 pr-4">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fas fa-clipboard-check text-indigo-500 text-[10px]"></i>
+                            <span class="text-[10px] font-bold text-gray-700">{{ ganttPopoverEvent.event.date ? new Date(ganttPopoverEvent.event.date).toLocaleDateString() : $t('common.na') }}</span>
+                        </div>
+                        <span class="text-[9px] text-gray-400 italic">{{ ganttPopoverEvent.event.details.userName }}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-600 leading-relaxed intervention-rich-text max-h-32 overflow-y-auto" v-html="sanitize(ganttPopoverEvent.event.details.description)"></div>
+                </template>
+            </div>
+        </transition>
+    </teleport>
+

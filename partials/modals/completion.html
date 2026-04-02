@@ -1,0 +1,347 @@
+    <!-- NEW: Start Project Modal -->
+    <div v-if="showStartProjectModal && startProjectData" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg animate-fade-in-up max-h-[90vh] overflow-y-auto">
+            <div class="p-4 text-white flex justify-between items-center sticky top-0 z-10" :style="{ backgroundColor: settings.theme.colorTierCompleted }">
+                <h3 class="font-bold text-lg"><i class="fas fa-play mr-2"></i> {{ $t('start_step.title') }}</h3>
+                <button @click="showStartProjectModal = false; startProjectData = null;" class="hover:text-gray-300"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <!-- Project Info -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm font-bold text-gray-500 mb-1">{{ $t('start_step.project_label') }}</div>
+                    <div class="text-lg font-bold text-gray-800">{{ startProjectData.projTitle }}</div>
+                    <div class="text-sm text-gray-600 mt-1">{{ $t('start_step.tier_level', { level: startProjectData.level }) }}</div>
+                </div>
+                
+                <!-- Intervention (editable) -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">{{ $t('start_step.intervention_label') }}</label>
+                    <input v-model="startProjectData.intervention" class="w-full p-2 border rounded text-sm" :placeholder="$t('start_step.intervention_placeholder')">
+                </div>
+                
+                <!-- Monetary Costs (editable) -->
+                <div class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorMonetary, 0.06), borderColor: colorAlpha(settings.theme.colorMonetary, 0.25) }">
+                    <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorMonetary }"><i class="fas fa-dollar-sign mr-1"></i> {{ $t('start_step.monetary_costs') }}</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div v-for="ct in costTypesForNewData" :key="ct.id">
+                            <label class="block text-xs text-gray-500 mb-1">{{ getCostTypeName(ct.name) }}</label>
+                            <input type="number" v-model.number="startProjectData.monetaryCosts[ct.id]" class="w-full p-1 border rounded text-sm" placeholder="0" min="0">
+                        </div>
+                    </div>
+                    <div class="text-right text-sm font-bold mt-2" :style="{ color: settings.theme.colorMonetary }">
+                        {{ $t('completion.total') }} ${{ formatMoney(Object.values(startProjectData.monetaryCosts || {}).reduce((s, v) => s + (Number(v) || 0), 0)) }}
+                    </div>
+                </div>
+                
+                <!-- In-Kind Labor (editable) -->
+                <div class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.06), borderColor: colorAlpha(settings.theme.colorInkind, 0.25) }">
+                    <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hard-hat mr-1"></i> {{ $t('start_step.inkind_labor') }}</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.people') }}</label>
+                            <input type="number" v-model.number="startProjectData.inkindPeople" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.hours') }}</label>
+                            <input type="number" v-model.number="startProjectData.inkindHours" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.rate_per_hr') }}</label>
+                            <input type="number" v-model.number="startProjectData.inkindRate" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                    </div>
+                    <div class="text-right text-xs mt-1" :style="{ color: settings.theme.colorInkind }">
+                        {{ (startProjectData.inkindPeople || 0) * (startProjectData.inkindHours || 0) }} {{ $t('common.hours') }}
+                    </div>
+                </div>
+                
+                <!-- Community Labor (editable) -->
+                <div class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.06), borderColor: colorAlpha(settings.theme.colorCommunity, 0.25) }">
+                    <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorCommunity }"><i class="fas fa-users mr-1"></i> {{ $t('start_step.community_labor') }}</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.people') }}</label>
+                            <input type="number" v-model.number="startProjectData.communityPeople" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.hours') }}</label>
+                            <input type="number" v-model.number="startProjectData.communityHours" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">{{ $t('start_step.rate_per_hr') }}</label>
+                            <input type="number" v-model.number="startProjectData.communityRate" class="w-full p-1 border rounded text-sm" min="0">
+                        </div>
+                    </div>
+                    <div class="text-right text-xs mt-1" :style="{ color: settings.theme.colorCommunity }">
+                        {{ (startProjectData.communityPeople || 0) * (startProjectData.communityHours || 0) }} {{ $t('common.hours') }}
+                    </div>
+                </div>
+                
+                <!-- Donations (editable) -->
+                <div class="p-4 rounded-lg border" style="background-color: rgba(236,72,153,0.06); border-color: rgba(236,72,153,0.25);">
+                    <label class="block text-sm font-bold mb-2 text-pink-600"><i class="fas fa-hand-holding-heart mr-1"></i> Donations</label>
+
+                    <div v-if="!startProjectData.donations || startProjectData.donations.length === 0" class="text-center text-gray-400 text-xs py-2 italic">No donations</div>
+
+                    <div v-for="(don, di) in (startProjectData.donations || [])" :key="don.id || di" class="flex items-start gap-2 mb-1.5 bg-white rounded border border-pink-100 px-2 py-1.5">
+                        <div class="flex-1 min-w-0 space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-semibold text-gray-700">{{ don.donorName || 'Unknown' }}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600">{{ (don.type || '').replace(/_/g, ' ') }}</span>
+                            </div>
+                            <div class="text-xs text-gray-500 truncate">{{ don.description }}</div>
+                            <div class="text-sm font-bold text-pink-600">${{ formatMoney(don.value || 0) }}</div>
+                        </div>
+                        <button @click="startProjectData.donations.splice(di, 1)" class="text-gray-300 hover:text-red-500 p-1 shrink-0"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <div class="mt-2 pt-2 border-t border-pink-200 space-y-1.5">
+                        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Add donation</div>
+                        <div class="flex gap-1">
+                            <select v-model="newDonationDonorId" class="flex-1 p-1.5 border rounded text-xs">
+                                <option value="">Select donor...</option>
+                                <option v-for="d in donors" :key="d.id" :value="d.id">{{ d.name }}</option>
+                            </select>
+                            <button @click="showAddDonorModal = true" class="px-2 py-1 text-xs text-pink-600 border border-pink-200 rounded hover:bg-pink-50" title="Add new donor"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <input v-model="newDonationDescription" type="text" placeholder="Description..." class="w-full p-1.5 border rounded text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select v-model="newDonationType" class="p-1.5 border rounded text-xs">
+                                <option value="cash">Cash</option>
+                                <option value="discount">Discount</option>
+                                <option value="third_party_purchase">Third-party purchase</option>
+                                <option value="in_kind_service">In-kind service</option>
+                                <option value="in_kind_product">In-kind product</option>
+                            </select>
+                            <input type="number" v-model.number="newDonationValue" min="0" placeholder="Value ($)" class="p-1.5 border rounded text-xs">
+                        </div>
+                        <button @click="addDonationToStartProject()"
+                                :disabled="!newDonationDonorId || !newDonationDescription.trim() || !newDonationValue"
+                                class="w-full py-1.5 text-xs font-bold text-white bg-pink-400 rounded hover:bg-pink-500 disabled:opacity-50 transition-colors">
+                            Add Donation
+                        </button>
+                    </div>
+
+                    <div v-if="(startProjectData.donations || []).length > 0" class="text-right text-sm font-bold text-pink-600 mt-2 pt-1 border-t border-pink-200">
+                        Total: ${{ formatMoney(getTierDonationTotal(startProjectData)) }}
+                    </div>
+                </div>
+
+                <p v-if="(Object.values(startProjectData.monetaryCosts || {}).reduce((s, v) => s + (Number(v) || 0), 0)) > 0" class="text-xs text-gray-500">{{ $t('start_step.allocation_note') }}</p>
+                
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
+                <button @click="showStartProjectModal = false; startProjectData = null;" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-200 text-sm">{{ $t('start_step.cancel') }}</button>
+                <button @click="confirmStartProject" 
+                        class="px-6 py-2 text-white rounded font-bold shadow-lg text-sm hover:opacity-90 transition"
+                        :style="{ backgroundColor: settings.theme.colorTierCompleted }">
+                    <i class="fas fa-check mr-1"></i> {{ $t('start_step.confirm') }}
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Complete Step Modal (two-step: FM financial data + PM documental proof) -->
+    <div v-if="showCompleteProjectModal && completeProjectData" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg animate-fade-in-up max-h-[90vh] overflow-y-auto">
+            <div class="p-4 text-white flex justify-between items-center sticky top-0 z-10" :style="{ backgroundColor: settings.theme.headerBg }">
+                <h3 class="font-bold text-lg"><i class="fas fa-check-circle mr-2"></i> {{ $t('complete_step.title') }}</h3>
+                <button @click="showCompleteProjectModal = false; completeProjectData = null;" class="hover:text-gray-300"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <!-- Project Info -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="text-sm font-bold text-gray-500 mb-1">{{ $t('complete_step.project_label') }}</div>
+                    <div class="text-lg font-bold text-gray-800">{{ completeProjectData.projTitle }}</div>
+                    <div class="text-sm text-gray-600 mt-1">{{ $t('complete_step.tier_level', { level: completeProjectData.level }) }}</div>
+                </div>
+
+                <!-- ═══ NO PROOF WARNING ═══ -->
+                <div v-if="completeProjectData._proofCount === 0" class="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-exclamation-triangle text-amber-500 text-lg mt-0.5 shrink-0"></i>
+                        <div>
+                            <div class="text-sm font-bold text-amber-800 mb-1">No proof documents found</div>
+                            <p class="text-xs text-amber-700 leading-relaxed">
+                                No attachments have been marked as <strong>"Proof"</strong> in the PM step card for this step.
+                                Please upload and mark proof documents (receipts, reports, photos) in the PM step card's Attachments tab before completing this step.
+                            </p>
+                            <button v-if="!completeProjectData._notifySent"
+                                    @click="notifyTeamProofNeeded()"
+                                    :disabled="completeProjectData._notifySending"
+                                    class="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition active:scale-[0.98] disabled:opacity-60">
+                                <i class="fas" :class="completeProjectData._notifySending ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+                                {{ completeProjectData._notifySending ? 'Sending...' : 'Notify the team that you need it!' }}
+                            </button>
+                            <div v-else class="mt-3 flex items-center gap-2 text-xs font-bold text-green-700 bg-green-100 rounded-lg px-3 py-2">
+                                <i class="fas fa-check-circle"></i> Notification sent to the team!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ STEP 1: Fetch Financial Data from FM ═══ -->
+                <div class="rounded-lg border-2 overflow-hidden transition-colors"
+                     :class="[
+                         completeProjectData._proofCount === 0 ? 'border-gray-100 opacity-40 pointer-events-none' :
+                         completeProjectData._fmFetched ? 'border-green-300 bg-green-50/30' : 'border-gray-200'
+                     ]">
+                    <div class="p-4">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
+                                  :class="completeProjectData._fmFetched ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'">
+                                <i v-if="completeProjectData._fmFetched" class="fas fa-check"></i>
+                                <span v-else>1</span>
+                            </span>
+                            <span class="text-sm font-bold" :class="completeProjectData._fmFetched ? 'text-green-700' : 'text-gray-700'">{{ $t('complete_step.step_fm_title') }}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 ml-10 mb-3">{{ $t('complete_step.step_fm_hint') }}</p>
+                        <button v-if="!completeProjectData._fmFetched" type="button" @click="openFmImportModal()"
+                                :disabled="completeProjectData._proofCount === 0"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold text-sm text-white shadow transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                                :style="{ background: 'linear-gradient(135deg, ' + settings.theme.colorMonetary + ', ' + settings.theme.colorInkind + ', ' + settings.theme.colorCommunity + ')' }">
+                            <i class="fas fa-cloud-download-alt"></i> {{ $t('complete_step.fetch_from_fm') }}
+                        </button>
+                        <div v-else class="text-xs text-green-600 font-bold flex items-center gap-1.5 ml-10">
+                            <i class="fas fa-check-circle"></i> {{ $t('complete_step.fm_data_applied') }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ Financial Data (read-only, shown after FM fetch) ═══ -->
+                <template v-if="completeProjectData._fmFetched">
+                    <!-- Verified Monetary Costs (read-only) -->
+                    <div class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorMonetary, 0.06), borderColor: colorAlpha(settings.theme.colorMonetary, 0.25) }">
+                        <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorMonetary }"><i class="fas fa-dollar-sign mr-1"></i> {{ $t('complete_step.verified_monetary') }}</label>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <template v-for="ct in costTypesForNewData" :key="ct.id">
+                                <div v-if="(completeProjectData.verifiedMonetaryCosts[ct.id] || 0) > 0" class="flex justify-between text-xs py-0.5">
+                                    <span class="text-gray-600">{{ getCostTypeName(ct.name) }}</span>
+                                    <span class="font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(completeProjectData.verifiedMonetaryCosts[ct.id] || 0) }}</span>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="flex justify-between items-center mt-2 pt-2 border-t" :style="{ borderColor: colorAlpha(settings.theme.colorMonetary, 0.25) }">
+                            <span class="text-sm font-bold" :style="{ color: settings.theme.colorMonetary }">{{ $t('complete_step.verified_total') }}</span>
+                            <span class="text-lg font-bold" :style="{ color: settings.theme.colorMonetary }">${{ formatMoney(Object.values(completeProjectData.verifiedMonetaryCosts || {}).reduce((s, v) => s + (Number(v) || 0), 0)) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Verified In-Kind Labor (total value from FM logs, read-only) -->
+                    <div v-if="(completeProjectData._inkindLogCount || 0) > 0" class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorInkind, 0.06), borderColor: colorAlpha(settings.theme.colorInkind, 0.25) }">
+                        <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorInkind }"><i class="fas fa-hard-hat mr-1"></i> {{ $t('complete_step.verified_inkind') }}</label>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400 italic">
+                                <i class="fas fa-info-circle mr-0.5"></i> {{ $t('complete_step.aggregated_from_fm', { count: completeProjectData._inkindLogCount }) }}
+                            </span>
+                            <span class="text-base font-bold" :style="{ color: settings.theme.colorInkind }">${{ formatMoney(completeProjectData._inkindTotalValue || 0) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Verified Community Labor (total value from FM logs, read-only) -->
+                    <div v-if="(completeProjectData._communityLogCount || 0) > 0" class="p-4 rounded-lg border" :style="{ backgroundColor: colorAlpha(settings.theme.colorCommunity, 0.06), borderColor: colorAlpha(settings.theme.colorCommunity, 0.25) }">
+                        <label class="block text-sm font-bold mb-2" :style="{ color: settings.theme.colorCommunity }"><i class="fas fa-users mr-1"></i> {{ $t('complete_step.verified_community') }}</label>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400 italic">
+                                <i class="fas fa-info-circle mr-0.5"></i> {{ $t('complete_step.aggregated_from_fm', { count: completeProjectData._communityLogCount }) }}
+                            </span>
+                            <span class="text-base font-bold" :style="{ color: settings.theme.colorCommunity }">${{ formatMoney(completeProjectData._communityTotalValue || 0) }}</span>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- ═══ STEP 2: Fetch Documental Proof from PM ═══ -->
+                <div class="rounded-lg border-2 overflow-hidden transition-colors"
+                     :class="[
+                         completeProjectData._proofCount === 0 ? 'border-gray-100 opacity-40 pointer-events-none' :
+                         completeProjectData._pmProofFetched ? 'border-green-300 bg-green-50/30' :
+                         completeProjectData._fmFetched ? 'border-gray-200' : 'border-gray-100 opacity-50'
+                     ]">
+                    <div class="p-4">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
+                                  :class="completeProjectData._pmProofFetched ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'">
+                                <i v-if="completeProjectData._pmProofFetched" class="fas fa-check"></i>
+                                <span v-else>2</span>
+                            </span>
+                            <span class="text-sm font-bold" :class="completeProjectData._pmProofFetched ? 'text-green-700' : 'text-gray-700'">{{ $t('complete_step.step_pm_title') }}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 ml-10 mb-3">{{ $t('complete_step.step_pm_hint') }}</p>
+                        <button v-if="!completeProjectData._pmProofFetched" type="button" @click="fetchPmDocumentalProof()"
+                                :disabled="!completeProjectData._fmFetched || completeProjectData._proofCount === 0"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold text-sm shadow transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                                :class="completeProjectData._fmFetched ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500'">
+                            <i class="fas fa-file-import"></i> {{ $t('complete_step.fetch_from_pm') }}
+                        </button>
+                        <div v-else class="ml-10 space-y-1.5">
+                            <div class="text-xs text-green-600 font-bold flex items-center gap-1.5 mb-2">
+                                <i class="fas fa-check-circle"></i> {{ $t('complete_step.pm_proof_applied') }}
+                            </div>
+                            <div v-for="(item, idx) in completeProjectData._pmProofItems" :key="idx"
+                                 class="flex items-center gap-2 text-xs bg-white p-2 rounded border border-gray-200">
+                                <i class="fas" :class="item.type === 'pdf' ? 'fa-file-pdf text-red-500' : 'fa-file-image text-blue-500'"></i>
+                                <a :href="item.url" target="_blank" rel="noopener noreferrer"
+                                   class="text-gray-700 font-medium flex-1 hover:text-blue-600 truncate">{{ item.name }}</a>
+                                <span class="text-gray-400 text-[10px]">{{ item.date }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ STEP 3: Fetch Donations ═══ -->
+                <div class="rounded-lg border-2 overflow-hidden transition-colors"
+                     :class="[
+                         completeProjectData._proofCount === 0 ? 'border-gray-100 opacity-40 pointer-events-none' :
+                         completeProjectData._donationsFetched ? 'border-green-300 bg-green-50/30' :
+                         completeProjectData._pmProofFetched ? 'border-gray-200' : 'border-gray-100 opacity-50'
+                     ]">
+                    <div class="p-4">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
+                                  :class="completeProjectData._donationsFetched ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'">
+                                <i v-if="completeProjectData._donationsFetched" class="fas fa-check"></i>
+                                <span v-else>3</span>
+                            </span>
+                            <span class="text-sm font-bold" :class="completeProjectData._donationsFetched ? 'text-green-700' : 'text-gray-700'">Fetch Donations</span>
+                        </div>
+                        <p class="text-xs text-gray-400 ml-10 mb-3">Review donations recorded for this step</p>
+                        <button v-if="!completeProjectData._donationsFetched" type="button" @click="fetchCompletionDonations()"
+                                :disabled="!completeProjectData._pmProofFetched || completeProjectData._proofCount === 0"
+                                class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold text-sm shadow transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed bg-pink-500 hover:bg-pink-600 text-white">
+                            <i class="fas fa-hand-holding-heart"></i> Fetch Donations
+                        </button>
+                        <div v-else class="ml-10 space-y-1.5">
+                            <div class="text-xs text-green-600 font-bold flex items-center gap-1.5 mb-2">
+                                <i class="fas fa-check-circle"></i>
+                                <template v-if="(completeProjectData._donations || []).length > 0">
+                                    {{ completeProjectData._donations.length }} donation(s) — ${{ formatMoney(completeProjectData._donations.reduce((s, d) => s + (d.value || 0), 0)) }} total
+                                </template>
+                                <template v-else>No donations recorded</template>
+                            </div>
+                            <div v-for="don in (completeProjectData._donations || [])" :key="don.id"
+                                 class="flex items-center gap-2 text-xs bg-white p-2 rounded border border-pink-100">
+                                <span class="w-5 h-5 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-[10px] font-bold shrink-0">{{ (don.donorName || '?').charAt(0) }}</span>
+                                <span class="font-medium text-gray-700 flex-1 truncate">{{ don.donorName }} — {{ don.description }}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600">{{ (don.type || '').replace(/_/g, ' ') }}</span>
+                                <span class="font-bold text-pink-600">${{ formatMoney(don.value || 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t bg-gray-50">
+                <div class="flex justify-end gap-2">
+                    <button @click="showCompleteProjectModal = false; completeProjectData = null;" class="px-4 py-2 rounded text-gray-500 hover:bg-gray-200 text-sm">{{ $t('complete_step.cancel') }}</button>
+                    <button @click="confirmCompleteProject()"
+                            :disabled="!completeProjectData._fmFetched || !completeProjectData._pmProofFetched || !completeProjectData._donationsFetched"
+                            class="px-6 py-2 text-white rounded font-bold shadow-lg text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            :style="{ backgroundColor: settings.theme.headerBg }">
+                        <i class="fas fa-check-circle mr-1"></i> {{ $t('complete_step.complete_button') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    

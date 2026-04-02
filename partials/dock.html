@@ -1,0 +1,47 @@
+    <!-- ── App Navigation Dock ─────────────────────────────── -->
+    <nav class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center pl-1.5 pr-3 py-1.5 rounded-2xl bg-slate-900/80 backdrop-blur-xl shadow-lg shadow-black/20 border border-white/10">
+      <!-- App buttons -->
+      <div class="flex items-center gap-0">
+        <a href="#" class="app-dock-item app-dock-active" :data-dock-tooltip="$t('dock.grants_tooltip')">
+          <div class="app-dock-icon-wrap app-dock-icon-active">
+            <i class="fa-solid fa-hand-holding-hand text-base"></i>
+          </div>
+          <span class="app-dock-label">{{ $t('dock.grants_label') }}</span>
+        </a>
+        <button type="button" class="app-dock-item" :data-dock-tooltip="$t('dock.finance_tooltip')" @click.prevent.stop="showFmModal = true">
+          <div class="app-dock-icon-wrap">
+            <i class="fa-solid fa-wallet text-base"></i>
+          </div>
+          <span class="app-dock-label">{{ $t('dock.finance_label') }}</span>
+        </button>
+        <a href="#" class="app-dock-item" :data-dock-tooltip="$t('dock.management_tooltip')">
+          <div class="app-dock-icon-wrap">
+            <i class="fa-solid fa-list-check text-base"></i>
+          </div>
+          <span class="app-dock-label">{{ $t('dock.management_label') }}</span>
+        </a>
+      </div>
+      <!-- Separator -->
+      <div class="w-px h-7 bg-white/15 mx-3"></div>
+      <!-- Language switcher -->
+      <button type="button"
+              class="flex items-center justify-center w-9 h-9 rounded-lg text-[11px] font-bold tracking-wide uppercase transition-all duration-200 border"
+              :class="$i18n.locale === 'es'
+                ? 'bg-white/15 text-white border-white/25'
+                : 'bg-transparent text-white/50 border-transparent hover:text-white/80 hover:bg-white/8'"
+              :data-dock-tooltip="$i18n.locale === 'en' ? 'Cambiar a Español' : 'Switch to English'"
+              @click="switchLocale">
+        {{ $i18n.locale === 'en' ? 'ES' : 'EN' }}
+      </button>
+      <!-- Separator -->
+      <div class="w-px h-7 bg-white/15 mx-3"></div>
+      <!-- AI button -->
+      <button type="button"
+              class="app-dock-item app-dock-ai"
+              :class="aiChatOpen ? 'app-dock-ai-active' : ''"
+              :data-dock-tooltip="$t('dock.ai_tooltip')"
+              @click="toggleAiChat">
+        <i :class="aiChatOpen ? 'fa-solid fa-xmark text-base' : 'fa-solid fa-comment-dots text-base'"
+           :style="{ background: 'linear-gradient(135deg, ' + (settings.theme.colorMonetary || '#16a34a') + ', ' + (settings.theme.colorInkind || '#2563eb') + ', ' + (settings.theme.colorCommunity || '#ea580c') + ')', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }"></i>
+      </button>
+    </nav>

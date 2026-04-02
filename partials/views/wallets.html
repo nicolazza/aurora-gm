@@ -1,0 +1,97 @@
+        <div v-else-if="currentView === 'wallets'" class="max-w-6xl mx-auto animate-fade-in-up">
+             <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">{{ $t('wallets.title') }}</h2>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8 mx-auto">
+                <div class="flex items-stretch justify-center">
+                    <!-- Total Available (FM GM-wallets) -->
+                    <div class="text-center flex-1 flex flex-col justify-center">
+                        <div class="text-5xl font-mono font-bold mb-1 text-yellow-600">${{ formatMoney(budgetTotalLiquidity) }}</div>
+                        <p class="text-gray-500 uppercase text-xs font-bold tracking-widest">{{ $t('wallets.available_for_grants') }}</p>
+                    </div>
+                    
+                    <!-- Vertical Separator (only if allocated exists) -->
+                    <div v-if="getPendingVerificationProjectCount() > 0" class="w-px bg-gray-200 mx-8"></div>
+                    
+                    <!-- Allocated Amount (only if allocated exists) -->
+                    <div v-if="getPendingVerificationProjectCount() > 0" class="text-center flex-1 flex flex-col justify-center">
+                        <div class="text-5xl font-mono font-bold mb-1" :style="{ color: settings.theme.colorAllocation }">${{ formatMoney(getPendingVerificationValue()) }}</div>
+                        <p class="text-gray-500 uppercase text-xs font-bold tracking-widest">{{ $t('wallets.allocated_to_projects', { count: getPendingVerificationProjectCount() }) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden animate-fade-in-up">
+                <div class="bg-gray-800 text-white p-4 font-bold flex justify-between items-center">
+                    <span><i class="fas fa-list mr-2"></i> {{ $t('wallets.transaction_history') }}</span>
+                    <div class="flex gap-3 items-center">
+                        <select v-model="filterWallet" class="px-3 py-1.5 rounded text-sm bg-white text-gray-700 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="all">{{ $t('wallets.all_wallets') }}</option>
+                            <option v-for="wallet in fmGmWallets" :key="wallet.id" :value="wallet.id">{{ wallet.name }}</option>
+                        </select>
+                        <select v-model="filterType" class="px-3 py-1.5 rounded text-sm bg-white text-gray-700 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="all">{{ $t('wallets.all_types') }}</option>
+                            <option value="allocation">{{ $t('wallets.allocation') }}</option>
+                            <option value="project_completion">{{ $t('wallets.project_completion') }}</option>
+                            <option value="expense">{{ $t('wallets.expense') }}</option>
+                            <option value="income">{{ $t('wallets.income') }}</option>
+                        </select>
+                    </div>
+                </div>
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-100 text-gray-500 text-xs uppercase border-b"><tr><th class="p-4 w-10"></th><th class="p-4">{{ $t('wallets.th_date') }}</th><th class="p-4">{{ $t('wallets.th_wallet') }}</th><th class="p-4">{{ $t('wallets.th_type_desc') }}</th><th class="p-4 text-right">{{ $t('wallets.th_amount') }}</th><th class="p-4 w-10"></th></tr></thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr v-for="tx in filteredBudgetFeed" :key="tx.id" class="transition duration-150 relative group" :class="{'hover:bg-gray-50': true}">
+                            
+                            <td class="p-4 text-center">
+                                <div v-if="tx.categoryIcon != null || tx.categoryColor" class="w-8 h-8 rounded-full flex items-center justify-center text-xs shrink-0" :style="tx.categoryColor ? { backgroundColor: (tx.categoryColor || '') + '25', color: tx.categoryColor } : {}">
+                                    <i v-if="tx.categoryIcon" :class="'fas ' + tx.categoryIcon"></i>
+                                    <i v-else class="fas fa-circle"></i>
+                                </div>
+                                <div v-else class="w-8 h-8 rounded-full flex items-center justify-center text-xs" :class="[getTransactionUi(tx).bgClass, getTransactionUi(tx).colorClass]" :style="getTransactionUi(tx).bgStyle || {}">
+                                    <i class="fas" :class="getTransactionUi(tx).icon"></i>
+                                </div>
+                            </td>
+
+                            <td class="p-4 text-gray-500 whitespace-nowrap">{{ new Date(tx.date).toLocaleDateString() }}</td>
+                            <td class="p-4 font-bold text-gray-700">{{ tx._isBudgetEvent ? $t('editor.no_data') : (tx.walletName || $t('editor.no_data')) }}</td>
+                            <td class="p-4">
+                                <div class="font-bold text-xs uppercase mb-1" :class="!tx.categoryName && getTransactionUi(tx).colorClass" :style="tx.categoryName && tx.categoryColor ? { color: tx.categoryColor } : (!tx.categoryName && getTransactionUi(tx).colorStyle ? getTransactionUi(tx).colorStyle : {})">
+                                    {{ tx.categoryName ? getCatName(tx.categoryName).toUpperCase() : getTransactionUi(tx).label }}
+                                </div>
+                                <div class="text-gray-600">
+                                    <template v-if="tx.projectId && tx.projectTitle">
+                                        {{ (tx.stepDescription != null ? tx.stepDescription : tx.description).split(tx.projectTitle)[0] }}<span @click.stop="openProjectDetailsModal(tx.projectId)" class="cursor-pointer underline hover:opacity-80" :style="{ color: settings.theme.headerBg }">{{ tx.projectTitle }}</span>{{ (tx.stepDescription != null ? tx.stepDescription : tx.description).split(tx.projectTitle).slice(1).join(tx.projectTitle) }}
+                                    </template>
+                                    <template v-else>{{ tx.stepDescription != null ? tx.stepDescription : tx.description }}</template>
+                                </div>
+                            </td>
+                            <td class="p-4 text-right font-mono font-bold">
+                                <template v-if="tx._isBudgetEvent && (tx.event_type === 'allocation' || tx.event_type === 'project_completion')">{{ $t('editor.no_data') }}</template>
+                                <span v-else :style="Object.keys(getBudgetFeedAmountStyle(tx)).length > 0 ? getBudgetFeedAmountStyle(tx) : (getTransactionUi(tx).colorStyle || {})" :class="Object.keys(getBudgetFeedAmountStyle(tx)).length === 0 && !getTransactionUi(tx).colorStyle ? getTransactionUi(tx).colorClass : ''">
+                                    {{ tx.isInternalTransfer ? '' : tx.isDonation ? '+' : (tx.type === 'donation' || tx.type === 'DONATION') ? '+' : (tx.type === 'income' || (tx.event_type === 'project_completion' && tx.amount > 0)) ? '+' : '-' }} ${{ formatMoney(Math.abs(tx.amount)) }}
+                                </span>
+                            </td>
+                            <td class="p-4 text-center">
+                                <a v-if="tx.isDonation && tx._fmTxRecord && hasTransactionReceipt(tx._fmTxRecord)"
+                                   :href="getTransactionReceiptUrl(tx._fmTxRecord)"
+                                   target="_blank" class="text-slate-400 hover:text-green-600 transition-colors"
+                                   :title="$t('wallets.view_proof')">
+                                    <i class="fas fa-paperclip"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div v-if="budgetFeedPage < budgetFeedTotalPages" class="text-center py-6">
+                    <button @click="loadMoreBudgetFeed" :disabled="budgetFeedLoadingMore"
+                            class="px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
+                            :class="budgetFeedLoadingMore ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                        <i v-if="budgetFeedLoadingMore" class="fas fa-spinner fa-spin mr-2"></i>
+                        <i v-else class="fas fa-chevron-down mr-2"></i>
+                        {{ budgetFeedLoadingMore ? 'Loading...' : 'Load more' }}
+                        <span class="text-gray-400 ml-1">({{ budgetFeed.length }} / {{ budgetFeedTotalItems }})</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
