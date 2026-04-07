@@ -20,14 +20,6 @@ Originally built by [CoFinca Aurora](https://www.cofincaurora.org) for managing 
 
 ## Features
 
-### Homepage
-
-- Animated pixel forest hero section with parallax scrolling
-- 4 collapsible content sections with slide transitions
-- Icon carousel call-to-action section
-- Hero stats with count-up animation
-- Responsive layout across all screen sizes
-
 ### Project Lifecycle
 
 - Step-based project lifecycle management
